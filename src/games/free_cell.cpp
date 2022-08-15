@@ -15,7 +15,6 @@ struct FreeCell : Game
         builder
             .set_accept_function(PileAcceptFunctions::None)
             .set_empty_accept_function(PileEmptyAcceptFunctions::AnySingle)
-            .set_ordering_function(PileOrderingFunctions::Any)
             .set_positioning_function(PilePositioningFunctions::Aligned)
             .set_empty_sprite(card_sprites->get_empty_sprite());
         for (int i = 0; i < 4; ++i)
