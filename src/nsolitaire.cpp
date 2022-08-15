@@ -233,16 +233,34 @@ struct Pile
 
     bool can_accept_card(Card* incoming_card) { return paf(&cards, incoming_card); }
 
+    void reset_positions() { ppf(get_position(), cards); }
+
     void add_card(Card incoming_card)
     {
         cards.push_back(incoming_card);
-        ppf(get_position(), cards);
+        reset_positions();
     }
 
     std::vector<Card> take_cards(Card* take_from)
     {
-        // TODO: Flesh this out
+        auto card_index = std::find_if(cards.begin(), cards.end(), [take_from] (Card const& c) { return &c == take_from; });
+
+        std::vector<Card> result{};
+        while (card_index != cards.end())
+        {
+            result.push_back(*card_index);
+            card_index = cards.erase(card_index);
+        }
+
+        return result;
     }
+
+    void receive_cards(std::vector<Card>* incoming_cards)
+    {
+        std::move(incoming_cards->begin(), incoming_cards->end(), std::back_inserter(cards));
+        reset_positions();
+    }
+
 
     Card* card_clicked(vec2 mouse_pos)
     {
@@ -281,11 +299,14 @@ struct DragState
     std::vector<Card> cards;
     bool active;
     vec2 mouse_offset;
+    Pile* source_pile;
 
     void start_drag(vec2 mouse_pos, Pile* pile, Card* top_card)
     {
         cards = pile->take_cards(top_card);
-        mouse_offset = mouse_pos - pile->get_position();
+        mouse_offset = cards.front().get_position() - mouse_pos;
+        ppf = pile->ppf;
+        source_pile = pile;
         active = true;
     }
 
@@ -297,6 +318,7 @@ struct DragState
     void end_drag()
     {
         active = false;
+        source_pile->receive_cards(&cards);
         cards.clear();
     }
 
@@ -469,10 +491,8 @@ public:
                 clicked_card = pile->card_clicked(input_state->mouse.pos);
                 if (clicked_card)
                 {
-                    clicked_card->print();
-                    // Start a drag here
-
                     state.drag_state.start_drag(input_state->mouse.pos, pile, clicked_card);
+                    break;
                 }
             }
 
