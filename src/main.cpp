@@ -53,9 +53,15 @@ int main(int argc, char** argv) {
 
             Solitaire solitaire(&renderContext);
 
+#if BENCHMARK
+            Uint32 target_tick = SDL_GetTicks() + 1000;
+            int frame_count = 0;
+#endif
+
             bool quit = false;
             SDL_Event e;
 
+            // GAME LOOP
             while (!quit) {
                 processFrameStart(&inputState);
 
@@ -80,6 +86,19 @@ int main(int argc, char** argv) {
                 solitaire.update(&inputState);
 
                 solitaire.render(&renderContext);
+
+                renderContext.present();
+
+#if BENCHMARK
+                ++frame_count;
+
+                if (SDL_GetTicks() >= target_tick)
+                {
+                  std::cout << "FPS: " << frame_count << std::endl;
+                  frame_count = 0;
+                  target_tick = SDL_GetTicks() + 1000;
+                }
+#endif
             }
         }
     }

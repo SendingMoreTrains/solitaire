@@ -215,7 +215,5 @@ public:
         {
             dragState.pile.render(renderContext);
         }
-
-        renderContext->present();
     }
 };

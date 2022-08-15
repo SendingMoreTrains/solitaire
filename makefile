@@ -15,4 +15,4 @@ LDLIBS = -lmingw32 -lSDL2main -lSDL2 -lSDL2_image
 SRC = src/main.cpp
 
 all: $(OBJ)
-	$(CXX) $(SRC) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) -o solitaire.exe
+	$(CXX) $(SRC) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) -DBENCHMARK -o solitaire.exe
