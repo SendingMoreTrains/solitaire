@@ -190,9 +190,9 @@ namespace PilePositioningFunctions
     {
         if (cards.empty()) { return; }
 
-        for (std::vector<Card>::size_type i = 0; i < cards.size(); ++i)
+        for (int i = 0; i < (int)cards.size(); ++i)
         {
-            cards[i].set_position(vec2 { pile_pos.x, pile_pos.y + ((int)i * CARD_OFFSET) });
+            cards[i].set_position(vec2 { pile_pos.x, pile_pos.y + (i * CARD_OFFSET) });
         }
     }
 }
@@ -241,6 +241,27 @@ struct Pile
         reset_positions();
     }
 
+    bool is_within_bounds(vec2 pos)
+    {
+        rect lower_bound{ area };
+        if (!cards.empty())
+        {
+            lower_bound = cards.back().area;
+        }
+
+        rect effective_area{
+            area.x,
+            area.y,
+            (lower_bound.x + lower_bound.w) - area.x,
+            (lower_bound.y + lower_bound.h) - area.y
+        };
+
+        return (pos.x > effective_area.x
+                && pos.x < effective_area.x + effective_area.w
+                && pos.y > effective_area.y
+                && pos.y < effective_area.y + effective_area.h);
+    }
+
     std::vector<Card> take_cards(Card* take_from)
     {
         auto card_index = std::find_if(cards.begin(), cards.end(), [take_from] (Card const& c) { return &c == take_from; });
@@ -258,9 +279,10 @@ struct Pile
     void receive_cards(std::vector<Card>* incoming_cards)
     {
         std::move(incoming_cards->begin(), incoming_cards->end(), std::back_inserter(cards));
+        incoming_cards->clear();
+
         reset_positions();
     }
-
 
     Card* card_clicked(vec2 mouse_pos)
     {
@@ -315,11 +337,15 @@ struct DragState
         ppf(mouse_pos + mouse_offset, cards);
     }
 
+    void return_cards()
+    {
+        source_pile->receive_cards(&cards);
+    }
+
     void end_drag()
     {
+        if (!cards.empty()) { return_cards(); }
         active = false;
-        source_pile->receive_cards(&cards);
-        cards.clear();
     }
 
     void render(RenderContext* rc, CardRenderer* cr)
@@ -500,6 +526,16 @@ public:
 
         if (input_state->mouse.left.was_released)
         {
+            for (auto pile : state.tableau.all_piles)
+            {
+                if (pile->is_within_bounds(input_state->mouse.pos))
+                {
+                    if (pile->can_accept_card(&state.drag_state.cards.front()))
+                    {
+                        pile->receive_cards(&state.drag_state.cards);
+                    }
+                }
+            }
             state.drag_state.end_drag();
         }
     }
