@@ -143,7 +143,11 @@ int main(int argc, char** argv) {
                         // }
 
                         processSdlEvent(&inputState, &e);
+                    }
 
+                    if (inputState.keys.get_state(SDLK_r).is_down)
+                    {
+                        solitaire.reset();
                     }
 
                     solitaire.update(&inputState);

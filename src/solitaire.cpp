@@ -31,6 +31,12 @@ public:
     }
     ~Solitaire() { delete game; }
 
+    void reset()
+    {
+        state.clear();
+        game->initialize_board(&card_sprites, &state);
+    }
+
     void handle_mouse_press(vec2 mouse_pos)
     {
         Card* clicked_card{};

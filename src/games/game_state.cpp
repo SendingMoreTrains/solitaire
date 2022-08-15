@@ -6,6 +6,15 @@ struct DragState
     vec2 mouse_offset;
     Pile* source_pile;
 
+    void clear()
+    {
+        positioning_function = nullptr;
+        cards.clear();
+        active = false;
+        mouse_offset = vec2 {0, 0};
+        source_pile = nullptr;
+    }
+
     void start_drag(vec2 mouse_pos, Pile* pile, Card* top_card)
     {
         cards = pile->take_cards(top_card);
@@ -49,13 +58,17 @@ struct TableauState
     std::vector<Pile*> all_piles;
     std::map<int, std::vector<Pile*>> pile_map;
 
-    ~TableauState()
+    void clear()
     {
         for (auto pile : all_piles)
         {
             delete pile;
         }
+        all_piles.clear();
+        pile_map.clear();
     }
+
+    ~TableauState() { clear(); }
 
     void add_pile(int pile_type, Pile* incoming_pile)
     {
@@ -100,4 +113,11 @@ struct GameState
     DragState drag;
     TableauState tableau;
     std::vector<UIElement> ui_elements;
+
+    void clear()
+    {
+        drag.clear();
+        tableau.clear();
+        ui_elements.clear();
+    }
 };
