@@ -38,6 +38,16 @@ struct vec2 {
         this->x -= right.x;
         this->y -= right.y;
     }
+
+    bool operator==(const vec2& right)
+    {
+        return this->x == right.x && this->y == right.y;
+    }
+
+    bool operator!=(const vec2& right)
+    {
+        return this->x != right.x || this->y != right.y;
+    }
 };
 
 void send_quit_event()
@@ -49,6 +59,7 @@ void send_quit_event()
 
 #include "engine/engine.h"
 #include "solitaire.cpp"
+#include "ui/menu.cpp"
 #include "scenes/scene.h"
 
 RenderedText current_text{};
@@ -81,12 +92,7 @@ int main(int argc, char** argv) {
                 bool quit = false;
                 SDL_Event e;
 
-                // OutlineFont chosen_font{ &renderContext, "res/Arcadepix Plus.ttf", 16, 1 };
-                // current_text = chosen_font.render_outlined_text("Testing 1 2 3, FreeCell");
-
                 current_text = renderContext.create_rendered_text("Testing 1 2 3, FreeCell");
-                SDL_Texture* overlay = renderContext.create_overlay();
-
 
                 solitaire.start_game();
 
@@ -118,13 +124,6 @@ int main(int argc, char** argv) {
                     {
                         solitaire.redeal();
                     }
-
-                    // solitaire.update(&inputState);
-
-                    // solitaire.render(&renderContext);
-
-                    // renderContext.render_full_screen(overlay);
-                    // renderContext.render_text(current_text, vec2 {20, 100});
 
                     manager.update(&inputState);
                     manager.render();

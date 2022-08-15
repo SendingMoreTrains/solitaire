@@ -7,37 +7,34 @@ public:
     SDL_Texture* overlay;
     RenderedText pause_text;
 
-    RenderedText text_resume;
-    RenderedText text_new_game;
-    RenderedText text_quit;
+    Menu menu;
 
-    // void* here is an underlying scene to render below the overlay
+    enum Options
+    {
+        RESUME = 0,
+        NEW = 1,
+        QUIT = 2
+    };
+
     PauseScene(SceneManager* manager, BaseScene* paused_scene)
         : manager(manager)
         , paused_scene(paused_scene)
+        , menu(manager->get_render_context())
     {
         auto rc = manager->get_render_context();
 
         overlay = rc->create_overlay();
         pause_text = rc->create_rendered_header_text("Paused");
 
-        text_resume = rc->create_rendered_text("Resume");
-        text_resume.set_position(vec2 {36, 70});
-
-        text_new_game = rc->create_rendered_text("New Deal");
-        text_new_game.set_position(vec2 {36, 90});
-
-        text_quit = rc->create_rendered_text("Quit");
-        text_quit.set_position(vec2 {36, 110});
+        menu.add_menu_option(rc, Options::RESUME, "Resume", vec2 {36, 70});
+        menu.add_menu_option(rc, Options::NEW, "New Deal", vec2 {36, 90});
+        menu.add_menu_option(rc, Options::QUIT, "Quit", vec2 {36, 110});
     }
 
     virtual ~PauseScene()
     {
         SDL_DestroyTexture(overlay);
         pause_text.free();
-        text_resume.free();
-        text_new_game.free();
-        text_quit.free();
     }
 
     void unpause()
@@ -53,22 +50,22 @@ public:
             return unpause();
         }
 
-        if (input_state->mouse.left.was_pressed)
+        switch (menu.update(input_state))
         {
-            if (text_resume.is_within_bounds(input_state->mouse.pos))
-            {
-                return unpause();
-            }
-            else if (text_new_game.is_within_bounds(input_state->mouse.pos))
-            {
-                paused_scene->reset();
-                return unpause();
-            }
-            else if (text_quit.is_within_bounds(input_state->mouse.pos))
-            {
-                send_quit_event();
-                return;
-            }
+        case (Options::RESUME):
+        {
+            return unpause();
+        }
+        case (Options::NEW):
+        {
+            paused_scene->reset();
+            return unpause();
+        }
+        case (Options::QUIT):
+        {
+            send_quit_event();
+            return;
+        }
         }
     }
 
@@ -78,8 +75,6 @@ public:
         rc->render_full_screen(overlay);
         rc->render_text(pause_text, vec2 {30, 30});
 
-        rc->render_text(text_resume);
-        rc->render_text(text_new_game);
-        rc->render_text(text_quit);
+        menu.render(rc);
     }
 };

@@ -49,6 +49,11 @@ struct RenderedText
         SDL_DestroyTexture(texture);
     }
 
+    vec2 get_position()
+    {
+        return {area.x, area.y};
+    }
+
     void set_position(vec2 pos)
     {
         area.x = pos.x;
