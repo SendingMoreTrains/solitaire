@@ -24,6 +24,7 @@ bool Screen::init() {
         printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
         return false;
     }
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
     SDL_RenderSetLogicalSize(_renderer, _game_width, _game_height);
 
     return true;
