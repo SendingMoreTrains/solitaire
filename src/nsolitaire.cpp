@@ -1,5 +1,6 @@
 #include <map>
 #include <utility>
+#include <array>
 
 enum Suit
 {
@@ -19,14 +20,12 @@ struct Card
 {
     Suit suit;
     int rank;
-    Sprite sprite;
     rect area;
 
-    Card(SpriteSheet* src_sheet, Suit suit, int rank)
+    Card(Suit suit, int rank, rect area)
         : suit{ suit }
         , rank{ rank }
-        , sprite{ src_sheet->createSprite(suit, rank - 1) }
-        , area{ 0, 0, sprite.src_rect.w, sprite.src_rect.h }
+        , area{ area }
     {}
 
     bool is_within_bounds(vec2 pos)
@@ -50,18 +49,13 @@ struct Card
         area.x = pos.x;
         area.y = pos.y;
     }
-
-    void render(RenderContext* rc)
-    {
-        rc->renderSprite(sprite, &area);
-    }
 };
 
 
-using DeckGenerationFunction = std::vector<Card>(*)(SpriteSheet*);
+using DeckGenerationFunction = std::vector<Card>(*)(rect);
 namespace DeckGenerators
 {
-    std::vector<Card> create_normal_deck(SpriteSheet* src_sheet)
+    std::vector<Card> create_normal_deck(rect card_size)
     {
         std::vector<Card> result;
         result.reserve(52);
@@ -70,7 +64,7 @@ namespace DeckGenerators
         {
             for (int r = 1; r < 14; ++r)
             {
-                result.emplace_back(src_sheet, s, r);
+                result.emplace_back(s, r, card_size);
             }
         }
 
@@ -81,16 +75,16 @@ namespace DeckGenerators
 struct Deck
 {
     std::vector<Card> cards;
-    SpriteSheet* sprite_sheet;
+    rect card_size;
 
-    Deck(SpriteSheet* sprite_sheet)
+    Deck(rect card_size)
         : cards{}
-        , sprite_sheet{ sprite_sheet }
+        , card_size{ card_size }
     {}
 
     void add_deck(DeckGenerationFunction generator = DeckGenerators::create_normal_deck)
     {
-        std::vector<Card> new_cards{ generator(sprite_sheet) };
+        std::vector<Card> new_cards{ generator(card_size) };
 
         cards.reserve(cards.capacity() + new_cards.size());
         std::move(new_cards.begin(), new_cards.end(), std::back_inserter(cards));
@@ -132,71 +126,6 @@ struct DragState
 };
 
 
-struct TableauItem
-{
-    rect area;
-    Sprite sprite;
-    std::vector<Card> cards;
-
-    TableauItem(rect area, Sprite sprite)
-        : area{ area }
-        , sprite{ sprite }
-        , cards{}
-    {}
-
-    virtual void handle_click() {} // mouse down & up on same element
-    virtual void handle_drag_start() {} // mouse goes down and starts to move
-
-    virtual bool can_accept_card(Card* incoming_card) = 0;
-
-    virtual void render(RenderContext* rc)
-    {
-        rc->renderSprite(sprite, &area);
-    }
-
-    // Assumes cards flow either left->right or top->bottom
-    bool is_within_bounds(vec2 pos)
-    {
-        vec2 upper_left{ area.x, area.y };
-
-        rect lower_right_area;
-        if (cards.empty()) { lower_right_area = area; }
-        else { lower_right_area = cards.back().area; }
-
-        rect effective_area{
-            upper_left.x,
-            upper_left.y,
-            (lower_right_area.x + lower_right_area.w) - upper_left.x,
-            (lower_right_area.y + lower_right_area.h) - upper_left.x
-        };
-
-        return (pos.x > effective_area.x
-                && pos.x < effective_area.x + effective_area.w
-                && pos.y > effective_area.y
-                && pos.y < effective_area.y + effective_area.h);
-    }
-
-    Card* card_clicked(vec2 pos)
-    {
-        if (cards.empty()) { return nullptr; }
-
-        for(auto card_i = cards.rbegin(); card_i != cards.rend(); ++card_i)
-        {
-            Card* card = &(*card_i);
-            if (card->is_within_bounds(pos)) { return card; }
-        }
-
-        return nullptr;
-    }
-
-    void take_cards(std::vector<Card>* incoming_cards)
-    {
-        std::move(incoming_cards->begin(), incoming_cards->end(), std::back_inserter(cards));
-        incoming_cards->erase(incoming_cards->begin(), incoming_cards->end());
-    }
-};
-
-
 using PileRenderFunction = void(*)(RenderContext* rc, std::vector<Card>* cards);
 namespace PileRenderFunctions
 {
@@ -210,6 +139,68 @@ namespace PileRenderFunctions
 
     }
 }
+
+class CardRenderer
+{
+public:
+    enum BackColor
+    {
+        Blue,
+        Red
+    };
+
+    CardRenderer(SpriteSheet* sprite_sheet, BackColor back_color = BackColor::Blue)
+        : sprite_sheet{ sprite_sheet }
+        , sprites{}
+        , back_color{ back_color }
+    {
+        for (int s = 0; s < 4; ++s)
+        {
+            for (int r = 0; r < 14; ++r)
+            {
+                sprites[(r * 4) + s] = sprite_sheet->createSprite(s, r);
+            }
+        }
+    }
+
+    int calc_index(int column, int row)
+    {
+        return (row * 4) + column;
+    }
+
+    void render_card(RenderContext* rc, Card& card)
+    {
+        rc->renderSprite(sprites[calc_index((int)card.suit, card.rank-1)], &card.area);
+    }
+
+    void render_blue_back(RenderContext* rc, vec2 pos)
+    {
+        rc->renderSprite(sprites[calc_index(2, 13)], pos);
+    }
+
+    void render_red_back(RenderContext* rc, vec2 pos)
+    {
+        rc->renderSprite(sprites[calc_index(3, 13)], pos);
+    }
+
+    void render_back(RenderContext* rc, vec2 pos)
+    {
+        if (back_color == BackColor::Blue)
+        {
+            render_blue_back(rc, pos);
+        }
+        else
+        {
+            render_red_back(rc, pos);
+        }
+    }
+
+private:
+    SpriteSheet* sprite_sheet;
+    std::array<Sprite, 56> sprites;
+
+    BackColor back_color;
+};
 
 using PilePlacementFunction = void(*)(vec2, std::vector<Card>*, Card*);
 namespace PilePlacementFunctions
@@ -241,60 +232,7 @@ namespace PileAcceptFunctions
 }
 
 
-
-template <PileRenderFunction RenderFunction, PileAcceptFunction AcceptFunction>
-struct Pile : TableauItem
-{
-    // mouse down & up on same element
-    virtual void handle_click()
-    {
-
-    };
-
-    // mouse goes down and starts to move
-    virtual void handle_drag_start()
-    {
-
-    };
-
-    virtual bool can_accept_card(Card* incoming_card)
-    {
-        return AcceptFunction(&cards, incoming_card);
-    }
-
-    virtual void render(RenderContext* rc)
-    {
-        if (cards.empty()) { rc->renderSprite(sprite, &area); }
-        else { RenderFunction(rc, &cards); }
-    }
-};
-
-/* Game/Board does following:
- *   Defines TableauItems and initial positions -\
- *   Creates deck with required cards           --+-> initialize_board
- *   Deals cards to TableauItems                -/
- *   Checks for win condition                   ----> is_game_over
- */
-struct GameState
-{
-    DragState drag_state; // Cards being dragged
-    std::vector<TableauItem> tableau_items; // Board elemeents like foundations & piles
-
-    //-----------------------
-    // Cards themselves
-    // Render order needs to be handled by owning tableau items
-    // Delegate logic to tableau items?
-    // std::vector<Card> cards;
-    Deck deck;
-    //-----------------------
-
-    GameState(SpriteSheet* sprite_sheet)
-        : deck{ sprite_sheet }
-    {}
-};
-
-
-struct NewPile
+struct Pile
 {
     PilePlacementFunction ppf;
     PileAcceptFunction paf;
@@ -303,7 +241,7 @@ struct NewPile
     rect area;
     std::vector<Card> cards;
 
-    NewPile(PilePlacementFunction ppf, PileAcceptFunction paf, Sprite empty_sprite, vec2 pos = { 0, 0 })
+    Pile(PilePlacementFunction ppf, PileAcceptFunction paf, Sprite empty_sprite, vec2 pos = { 0, 0 })
         : ppf{ ppf }
         , paf{ paf }
         , empty_sprite{ empty_sprite }
@@ -324,7 +262,7 @@ struct NewPile
         cards.push_back(incoming_card);
     }
 
-    void render(RenderContext* rc)
+    void render(RenderContext* rc, CardRenderer* cr)
     {
         if (cards.empty())
         {
@@ -334,7 +272,9 @@ struct NewPile
         {
             for (auto it = cards.begin(); it != cards.end(); ++it)
             {
-                it->render(rc);
+                cr->render_card(rc, *it);
+
+                // it->render(rc);
             }
         }
     }
@@ -343,16 +283,16 @@ struct NewPile
 
 struct TableauState
 {
-    std::vector<NewPile*> all_piles;
-    std::map<int, std::vector<NewPile*>> pile_map;
+    std::vector<Pile*> all_piles;
+    std::map<int, std::vector<Pile*>> pile_map;
 
-    void add_pile(int pile_type, NewPile* incoming_pile)
+    void add_pile(int pile_type, Pile* incoming_pile)
     {
         all_piles.push_back(incoming_pile);
         pile_map[pile_type].push_back(incoming_pile);
     }
 
-    std::vector<NewPile*> get_piles_of_type(int pile_type)
+    std::vector<Pile*> get_piles_of_type(int pile_type)
     {
         return pile_map[pile_type];
     }
@@ -384,7 +324,7 @@ struct UIElement
     }
 };
 
-struct NewGameState
+struct GameState
 {
     TableauState tableau;
     std::vector<UIElement> ui_elements;
@@ -404,7 +344,7 @@ struct Game
     // Create and add tableau_items in their location
     // Deal cards from deck to Tableau
     //  Return to Solitaire to let game run
-    virtual void initialize_board(SpriteSheet* sprite_sheet, Deck* deck, NewGameState* state) = 0;
+    virtual void initialize_board(SpriteSheet* sprite_sheet, Deck* deck, GameState* state) = 0;
     virtual void is_game_over() = 0;
 };
 
@@ -415,7 +355,7 @@ struct Playground : Game
         Cascade = 0
     };
 
-    virtual void initialize_board(SpriteSheet* sprite_sheet, Deck* deck, NewGameState* state)
+    virtual void initialize_board(SpriteSheet* sprite_sheet, Deck* deck, GameState* state)
     {
         // state->deck.add_deck();
         // state->deck.shuffle();
@@ -423,13 +363,13 @@ struct Playground : Game
 
         deck->add_deck();
 
-        NewPile* pile = new NewPile(
+        Pile* pile = new Pile(
             PilePlacementFunctions::OffsetCascade,
             PileAcceptFunctions::Any,
             sprite_sheet->createSprite(0, 14),
             vec2 { 10, 10 });
 
-        NewPile* pile_two = new NewPile(
+        Pile* pile_two = new Pile(
             PilePlacementFunctions::OffsetCascade,
             PileAcceptFunctions::Any,
             sprite_sheet->createSprite(1, 14),
@@ -453,17 +393,21 @@ struct Playground : Game
 class Solitaire
 {
     SpriteSheet sprite_sheet;
+    CardRenderer card_renderer;
     // Board board;
-    NewGameState state;
+    GameState state;
     Game* game;
 
 public:
     Solitaire(RenderContext* render_context)
         : sprite_sheet(render_context->loadTexture("res/card_spritesheet.png"), 32, 48)
+        , card_renderer(&sprite_sheet)
         , state()
     {
         game = new Playground();
-        Deck deck(&sprite_sheet);
+
+        rect card_size{ 0, 0, sprite_sheet.get_sprite_width(), sprite_sheet.get_sprite_height() };
+        Deck deck(card_size);
 
         game->initialize_board(&sprite_sheet, &deck, &state);
     }
@@ -471,18 +415,23 @@ public:
 
     void update(InputState* input_state)
     {
-        std::vector<NewPile*> piles{ state.tableau.all_piles };
+        std::vector<Pile*> piles{ state.tableau.all_piles };
     }
 
     void render(RenderContext* rc)
     {
-        std::vector<NewPile*>* piles = &state.tableau.all_piles;
+        rc->setDrawColor(22, 128, 17);
+        rc->clearScreen();
+
+        std::vector<Pile*>* piles = &state.tableau.all_piles;
 
         for (auto it = piles->begin(); it != piles->end(); ++it)
         {
-            NewPile* pile = *it;
+            Pile* pile = *it;
 
-            pile->render(rc);
+            pile->render(rc, &card_renderer);
         }
+
+        card_renderer.render_back(rc, vec2 { 30, 50 });
     }
 };
