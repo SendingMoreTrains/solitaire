@@ -179,12 +179,12 @@ struct TableauItem
 using PileRenderFunction = void(*)(RenderContext* rc, std::vector<Card>* cards);
 namespace PileRenderFunctions
 {
-    void RenderOffsetStack(RenderContext* rc, std::vector<Card>* cards)
+    void OffsetStack(RenderContext* rc, std::vector<Card>* cards)
     {
 
     }
 
-    void RenderFan(RenderContext* rc, std::vector<Card>* cards)
+    void Fan(RenderContext* rc, std::vector<Card>* cards)
     {
 
     }
@@ -193,6 +193,8 @@ namespace PileRenderFunctions
 using PileAcceptFunction = bool(*)(std::vector<Card>* cards, Card* incoming_card);
 namespace PileAcceptFunctions
 {
+    bool Any(std::vector<Card>* cards, Card* incoming_card) { return true; }
+
     bool AlternateColorsDescendingRank(std::vector<Card>* cards, Card* incoming_card)
     {
         return
@@ -261,38 +263,90 @@ struct NewPile
     PileAcceptFunction paf;
 
     Sprite empty_sprite;
+    rect area;
+    std::vector<Card> cards;
 
-    NewPile(PileRenderFunction prf, PileAcceptFunction paf, Sprite empty_sprite)
+    NewPile(PileRenderFunction prf, PileAcceptFunction paf, Sprite empty_sprite, vec2 pos = { 0, 0 })
         : prf{ prf }
         , paf{ paf }
         , empty_sprite{ empty_sprite }
+        , area{ pos.x, pos.y, empty_sprite.src_rect.w, empty_sprite.src_rect.h }
+        , cards{}
     {}
+
+    bool can_accept_card(Card* incoming_card) { return paf(&cards, incoming_card); }
+
+    void render(RenderContext* rc)
+    {
+        if (cards.empty())
+            rc->renderSprite(empty_sprite, &area);
+        else
+            prf(rc, &cards);
+    }
 };
 
 
 struct TableauState
 {
     std::map<int, std::vector<NewPile>> pile_map;
-    std::vector<NewPile*> all_piles;
 
     std::vector<NewPile>* get_piles_of_type(int pile_type)
     {
         return &pile_map[pile_type];
     }
 
-    // NOTE: this takes ownership of the incoming pile
-    void add_pile(int pile_type, NewPile* incoming_pile)
+    void add_pile(int pile_type, NewPile incoming_pile)
     {
-        if (pile_map.count(pile_type) == 0)
+        pile_map[pile_type].push_back(incoming_pile);
+    }
+
+    std::vector<NewPile*> get_all_piles()
+    {
+        std::vector<NewPile*> result{};
+
+        for (auto it = pile_map.begin(); it != pile_map.end(); ++it)
         {
-            pile_map.emplace(std::make_pair(pile_type, std::vector<NewPile>()));
+            for (auto inner_it = it->second.begin(); inner_it != it->second.end(); ++inner_it)
+            {
+                result.push_back(&(*inner_it));
+            }
         }
 
-        pile_map[pile_type].push_back(std::move(*incoming_pile));
-        all_piles.push_back(&pile_map[pile_type].back());
+        return result;
     }
 };
 
+
+
+using UIFunction = void(*)(TableauState*);
+struct UIElement
+{
+    Sprite sprite;
+    rect area;
+    UIFunction proc;
+
+    UIElement(Sprite sprite, rect area, UIFunction proc)
+        : sprite{ sprite }
+        , area{ area }
+        , proc{ proc }
+    {}
+
+    void handle_click(TableauState* tableau_state)
+    {
+        proc(tableau_state);
+    }
+
+    void render(RenderContext* rc)
+    {
+        rc->renderSprite(sprite, &area);
+    }
+};
+
+struct NewGameState
+{
+    TableauState tableau;
+    std::vector<UIElement> ui_elements;
+};
 
 struct Game
 {
@@ -308,7 +362,7 @@ struct Game
     // Create and add tableau_items in their location
     // Deal cards from deck to Tableau
     //  Return to Solitaire to let game run
-    virtual void initialize_board(GameState* state) = 0;
+    virtual void initialize_board(SpriteSheet* sprite_sheet, Deck* deck, NewGameState* state) = 0;
     virtual void is_game_over() = 0;
 };
 
@@ -319,13 +373,28 @@ struct Playground : Game
         Cascade = 0
     };
 
-    virtual void initialize_board(GameState* state)
+    virtual void initialize_board(SpriteSheet* sprite_sheet, Deck* deck, NewGameState* state)
     {
-        state->deck.add_deck();
-        state->deck.shuffle();
-        std::cout << "Size: " << state->deck.cards.size() << std::endl;
+        // state->deck.add_deck();
+        // state->deck.shuffle();
+        // std::cout << "Size: " << state->deck.cards.size() << std::endl;
 
+        deck->add_deck();
 
+        NewPile pile(
+            PileRenderFunctions::OffsetStack,
+            PileAcceptFunctions::Any,
+            sprite_sheet->createSprite(0, 14),
+            vec2 { 10, 10 });
+
+        NewPile pile_two(
+            PileRenderFunctions::OffsetStack,
+            PileAcceptFunctions::Any,
+            sprite_sheet->createSprite(1, 14),
+            vec2 { 50, 10 });
+
+        state->tableau.add_pile(Cascade, pile);
+        state->tableau.add_pile(Cascade, pile_two);
     }
 
     virtual void is_game_over()
@@ -334,34 +403,40 @@ struct Playground : Game
     }
 };
 
+
 class Solitaire
 {
     SpriteSheet sprite_sheet;
     // Board board;
-    GameState state;
+    NewGameState state;
     Game* game;
 
 public:
     Solitaire(RenderContext* render_context)
         : sprite_sheet(render_context->loadTexture("res/card_spritesheet.png"), 32, 48)
-        , state(&sprite_sheet)
+        , state()
     {
-        Playground pg{};
-        pg.initialize_board(&state);
-    }
+        game = new Playground();
+        Deck deck(&sprite_sheet);
 
-    ~Solitaire()
-    {
-        delete game;
+        game->initialize_board(&sprite_sheet, &deck, &state);
     }
+    ~Solitaire() { delete game; }
 
     void update(InputState* input_state)
     {
-
+        std::vector<NewPile*> piles{ state.tableau.get_all_piles() };
     }
 
-    void render(RenderContext* render_context)
+    void render(RenderContext* rc)
     {
+        std::vector<NewPile*> piles{ state.tableau.get_all_piles() };
 
+        for (auto it = piles.begin(); it != piles.end(); ++it)
+        {
+            NewPile* pile = *it;
+
+            pile->render(rc);
+        }
     }
 };
