@@ -204,16 +204,33 @@ namespace PilePositioningFunctions
 }
 
 
-using PileAcceptFunction = bool(*)(std::vector<Card>*, Card*);
+using PileAcceptFunction = bool(*)(std::vector<Card>*, std::vector<Card>*);
 namespace PileAcceptFunctions
 {
-    bool Any(std::vector<Card>* cards, Card* incoming_card) { return true; }
+    bool Any(std::vector<Card>* cards, std::vector<Card>* incoming_cards) { return true; }
 
-    bool AlternateColorsDescendingRank(std::vector<Card>* cards, Card* incoming_card)
+    bool AnySingle(std::vector<Card>* cards, std::vector<Card>* incoming_cards)
+    {
+        return incoming_cards->size() == 1;
+    }
+
+    bool AlternateColorsDescendingRank(std::vector<Card>* cards, std::vector<Card>* incoming_cards)
     {
         return
-            cards->back().get_color() != incoming_card->get_color() // alternates color
-            && ((cards->back().rank - incoming_card->rank) == 1);    // rank is one higher
+            cards->back().get_color() != incoming_cards->front().get_color() // alternates color
+            && ((cards->back().rank - incoming_cards->front().rank) == 1);    // rank is one higher
+    }
+}
+
+
+using PileOrderingFunction = bool(*)(Card*, Card*);
+namespace PileOrderingFunctions
+{
+    bool Any(Card*, Card*) { return true; }
+
+    bool AlternateColor(Card* top_card, Card* bottom_card)
+    {
+        return top_card->get_color() != bottom_card->get_color();
     }
 }
 
@@ -223,13 +240,16 @@ struct Pile
     PilePositioningFunction ppf;
     PileAcceptFunction paf;
 
+    PileOrderingFunction pof;
+
     Sprite empty_sprite;
     rect area;
     std::vector<Card> cards;
 
-    Pile(PilePositioningFunction ppf, PileAcceptFunction paf, Sprite empty_sprite, vec2 pos = { 0, 0 })
+    Pile(PilePositioningFunction ppf, PileAcceptFunction paf, PileOrderingFunction pof, Sprite empty_sprite, vec2 pos = { 0, 0 })
         : ppf{ ppf }
         , paf{ paf }
+        , pof{ pof }
         , empty_sprite{ empty_sprite }
         , area{ pos.x, pos.y, empty_sprite.src_rect.w, empty_sprite.src_rect.h }
         , cards{}
@@ -237,9 +257,15 @@ struct Pile
 
     vec2 get_position() { return vec2 { area.x, area.y }; }
 
-    bool can_accept_card(Card* incoming_card) { return paf(&cards, incoming_card); }
+    bool can_accept_card(std::vector<Card>* incoming_cards) { return paf(&cards, incoming_cards); }
 
     void reset_positions() { ppf(get_position(), cards); }
+
+    bool is_card_available(Card* card)
+    {
+        // TODO: Implement this using Ordering Function
+        return true;
+    }
 
     void add_card(Card incoming_card)
     {
@@ -416,7 +442,7 @@ struct UIElement
 
 struct GameState
 {
-    DragState drag_state;
+    DragState drag;
     TableauState tableau;
     std::vector<UIElement> ui_elements;
 };
@@ -436,7 +462,12 @@ struct Game
     // Deal cards from deck to Tableau
     //  Return to Solitaire to let game run
     virtual void initialize_board(SpriteSheet* sprite_sheet, Deck* deck, GameState* state) = 0;
-    virtual void is_game_over() = 0;
+
+    // Allow Game to overrule drag before starting
+    //  e.g. FreeCell limits movement by open cells
+    virtual bool allow_drag(/* TODO: Args */) { return true; }
+
+
 };
 
 struct Playground : Game
@@ -454,12 +485,14 @@ struct Playground : Game
         Pile* pile = new Pile(
             PilePositioningFunctions::OffsetCascade,
             PileAcceptFunctions::Any,
+            PileOrderingFunctions::Any,
             sprite_sheet->createSprite(0, 14),
             vec2 { 10, 10 });
 
         Pile* pile_two = new Pile(
             PilePositioningFunctions::OffsetCascade,
-            PileAcceptFunctions::Any,
+            PileAcceptFunctions::AnySingle,
+            PileOrderingFunctions::Any,
             sprite_sheet->createSprite(1, 14),
             vec2 { 50, 10 });
 
@@ -501,12 +534,12 @@ public:
     }
     ~Solitaire() { delete game; }
 
-    // TODO: State machine in here?
     void update(InputState* input_state)
     {
-        if (state.drag_state.active)
+        // TODO: Clean this up
+        if (state.drag.active)
         {
-            state.drag_state.update(input_state->mouse.pos);
+            state.drag.update(input_state->mouse.pos);
         }
 
         if (input_state->mouse.left.was_pressed)
@@ -518,7 +551,7 @@ public:
                 clicked_card = pile->card_clicked(input_state->mouse.pos);
                 if (clicked_card)
                 {
-                    state.drag_state.start_drag(input_state->mouse.pos, pile, clicked_card);
+                    state.drag.start_drag(input_state->mouse.pos, pile, clicked_card);
                     break;
                 }
             }
@@ -531,13 +564,13 @@ public:
             {
                 if (pile->is_within_bounds(input_state->mouse.pos))
                 {
-                    if (pile->can_accept_card(&state.drag_state.cards.front()))
+                    if (pile->can_accept_card(&state.drag.cards))
                     {
-                        pile->receive_cards(&state.drag_state.cards);
+                        pile->receive_cards(&state.drag.cards);
                     }
                 }
             }
-            state.drag_state.end_drag();
+            state.drag.end_drag();
         }
     }
 
@@ -547,13 +580,13 @@ public:
         rc->clearScreen();
 
         for (auto pile : state.tableau.all_piles)
-        {
+       {
             pile->render(rc, &card_renderer);
         }
 
-        if (state.drag_state.active)
+        if (state.drag.active)
         {
-            state.drag_state.render(rc, &card_renderer);
+            state.drag.render(rc, &card_renderer);
         }
     }
 };
