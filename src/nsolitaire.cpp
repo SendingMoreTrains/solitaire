@@ -5,34 +5,6 @@ struct DragState
     vec2 mouse_offset;
 };
 
-struct TableauItem
-{
-    rect area;
-    Sprite sprite;
-
-    TableauItem(rect area, Sprite sprite)
-        : area{ area }
-        , sprite{ sprite }
-    {}
-
-    virtual void handle_click() {}; // mouse down & up on same element
-    virtual void handle_drag_start() {}; // mouse goes down and starts to move
-    virtual void handle_drop(DragState* dragState) {}; // mouse released from drag
-
-    bool is_within_bounds(vec2 pos)
-    {
-        return (
-            area.x > r->x
-            && area.x < r->x + r->w
-            && area.y > r->y
-            && area.y < r->y + r->h);
-    }
-
-    void render(const RenderContext& rc)
-    {
-        rc.renderSprite(sprite, &area);
-    }
-};
 
 enum Suit
 {
@@ -48,32 +20,6 @@ enum CardColor
     Red
 };
 
-struct Card : TableauItem
-{
-    Suit suit;
-    int rank;
-    Sprite sprite;
-};
-
-struct Deck
-{
-    std::vector<Card> cards;
-};
-
-struct GameState
-{
-    DragState dragState; // Cards being dragged
-    std::vector<TableauItem> tableauItems; // Board elemeents like foundations & piles
-
-    //-----------------------
-    // Cards themselves
-    // Render order needs to be handled by owning tableau items
-    // Delegate logic to tableau items?
-    std::vector<Card> cards;
-    Deck cards;
-    //-----------------------
-};
-
 struct Card
 {
     Suit suit;
@@ -81,13 +27,111 @@ struct Card
     Sprite sprite;
     rect area;
 
-    TableauItem* owning_item;
+    Card(SpriteSheet* src_sheet, Suit suit, int rank)
+        : suit{ suit }
+        , rank{ rank }
+        , sprite{ src_sheet->createSprite(suit, rank - 1) }
+        , area{ 0, 0, sprite.src_rect.w, sprite.src_rect.h }
+    {}
+};
 
-    void handle_drop(DragState& dragState)
+
+struct TableauItem
+{
+    rect area;
+    Sprite sprite;
+    std::vector<Card> cards;
+
+    TableauItem(rect area, Sprite sprite)
+        : area{ area }
+        , sprite{ sprite }
+        , cards{}
+    {}
+
+    virtual void handle_click() {}; // mouse down & up on same element
+    virtual void handle_drag_start() {}; // mouse goes down and starts to move
+    virtual void handle_drop(DragState* dragState) {}; // mouse released from drag
+
+    // Assumes cards flow either left->right or top->bottom
+    bool is_within_bounds(vec2 pos)
     {
-        owning_item->handle_drop(dragState);
+        vec2 upper_left{ area.x, area.y };
+
+        rect lower_right_area;
+        if (cards.empty()) { lower_right_area = area }
+        else { lower_right_area = cards.back().area }
+
+        rect effective_area{
+            upper_left.x;
+            upper_left.y;
+            (lower_right_area.x + lower_right_area.w) - upper_left.x;
+            (lower_right_area.y + lower_right_area.h) - upper_left.x;
+        };
+
+        return (pos.x > effective_area->x
+                && pos.x < effective_area->x + effective_area->w
+                && pos.y > effective_area->y
+                && pos.y < effective_area->y + effective_area->h);
+    }
+
+    void render(const RenderContext& rc)
+    {
+        rc.renderSprite(sprite, &area);
     }
 };
+
+using DeckGenerationFunction = std::vector<Card>(*)(SpriteSheet*);
+namespace DeckGenerators
+{
+    std::vector<Card> create_normal_deck(SpriteSheet* src_sheet)
+    {
+        std::vector<Card> result;
+        result.reserve(52);
+
+        for (Suit s : { Suit::Spades, Suit::Diamonds, Suit::Clubs, Suit::Hearts })
+        {
+            for (int r = 0; r < 13; ++r)
+            {
+                result.emplace_back(src_sheet, s, r);
+            }
+        }
+    }
+}
+
+struct Deck
+{
+    std::vector<Card> cards;
+    SpriteSheet* sprite_sheet;
+
+    Deck(SpriteSheet* sprite_sheet)
+        : cards{}
+        , sprite_sheet{ sprite_sheet }
+    {}
+
+    void add_deck(DeckGenerationFunction generator = DeckGenerators::create_normal_deck)
+    {
+        std::vector<Card> new_cards{ generator(sprite_sheet) };
+
+        cards.reserve(cards.capacity() + new_cards.size());
+        std::move(new_cards.begin(), new_cards.end(), std::back_inserter(cards));
+    }
+
+    void add_decks(int num, DeckGenerationFunction generator = DeckGenerators::create_normal_deck)
+    {
+        for(int i = 0; i < num; ++i)
+        {
+            add_deck(generator);
+        }
+    }
+
+    void shuffle(std::vector<Card>* cards)
+    {
+        // TODO: Shuffle cards here
+    }
+
+
+};
+
 
 TableauItem::handle_drop(DragState& dragState)
 {
@@ -103,13 +147,20 @@ TableauItem::handle_drop(DragState& dragState)
 //  Creates deck with required cards           --+-> initialize_board
 //  Deals cards to TableauItems                -/
 //  Checks for win condition                   ----> is_game_over
-
 struct GameState
 {
-    DragState drag_state;
-    std::vector<TableauItem> tableau_items;
-    Deck deck;
+    DragState drag_state; // Cards being dragged
+    std::vector<TableauItem> tableau_items; // Board elemeents like foundations & piles
+
+    //-----------------------
+    // Cards themselves
+    // Render order needs to be handled by owning tableau items
+    // Delegate logic to tableau items?
+    std::vector<Card> cards;
+    Deck cards;
+    //-----------------------
 };
+
 
 struct Game
 {
@@ -119,6 +170,15 @@ struct Game
     //  Return to Solitaire to let game run
     virtual void initialize_board(GameState* state) = 0;
     virtual void is_game_over() = 0;
+};
+
+struct Playground : Game
+{
+    virtual void initialize_board(GameState* state)
+    {
+        state->deck.add_deck();
+        state->shuffle();
+    }
 };
 
 struct Solitaire
