@@ -1,2 +1,5 @@
-/cmake-build-debug/
+.vs/
+ /cmake-build-debug/
 .idea/
+
+*.exe
