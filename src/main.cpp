@@ -5,201 +5,214 @@
 #include "SDL.h"
 #include "SDL_image.h"
 
-#include "screen.cpp"
-
 const int SCREEN_WIDTH = 400;
 const int SCREEN_HEIGHT = 300;
 
-struct vec2
-{
+typedef SDL_Rect rect;
+
+struct vec2 {
     int x, y;
 };
 
-class SpriteSheet
-{
+struct Sprite {
+    SDL_Texture* texture;
+    rect src_rect;
+};
+
+class SpriteSheet {
 public:
-    SpriteSheet(SDL_Renderer* renderer, const char* filepath, int sprite_width, int sprite_height);
-    ~SpriteSheet();
+    SpriteSheet(SDL_Texture* texture, int sprite_width, int sprite_height) : _texture{texture},
+                                                                             _spr_width{sprite_width},
+                                                                             _spr_height{sprite_height} {}
 
-    SDL_Rect getSpriteSource(int spr_col, int spr_row);
-    SDL_Texture* getTexture();
-    SDL_Renderer* getRenderer();
+    ~SpriteSheet() { SDL_DestroyTexture(_texture); };
 
-    void renderSprite(SDL_Rect *src_rect, SDL_Rect *dest_rect);
+    Sprite createSprite(int sprite_column, int sprite_row);
+
 private:
-    int _spr_width;
-    int _spr_height;
-    SDL_Texture* _sheet;
+    SDL_Texture* _texture;
+    int _spr_width, _spr_height;
+};
+
+Sprite SpriteSheet::createSprite(int sprite_column, int sprite_row) {
+    SDL_Rect src_rect{sprite_column * _spr_width, sprite_row * _spr_height, _spr_width, _spr_height};
+    return Sprite{_texture, src_rect};
+}
+
+class RenderContext {
+public:
+    RenderContext(const char* title, int game_width, int game_height, int scale = 1) : _title{title},
+                                                                                       _game_width{game_width},
+                                                                                       _game_height{game_height},
+                                                                                       _window_scale{scale},
+                                                                                       _window{nullptr},
+                                                                                       _renderer{nullptr} {}
+
+    bool init();
+
+    ~RenderContext();
+
+    SDL_Texture* loadTexture(const char* file);
+
+    void setDrawColor(int r, int g, int b);
+
+    void clearScreen();
+
+    void renderSprite(Sprite sprite, rect* dst_rect);
+
+    void present();
+private:
+    const char* _title;
+    int _game_width, _game_height;
+    int _window_scale;
+    SDL_Window* _window;
     SDL_Renderer* _renderer;
 };
 
-SpriteSheet::SpriteSheet(SDL_Renderer* renderer, const char* filepath, int sprite_width, int sprite_height)
-        : _renderer{ renderer }
-        , _sheet{ IMG_LoadTexture(renderer, filepath) }
-        , _spr_width{ sprite_width }
-        , _spr_height{ sprite_height }
-{}
+bool RenderContext::init() {
+    _window = SDL_CreateWindow(_title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, _game_width * _window_scale,
+                               _game_height * _window_scale,
+                               SDL_WINDOW_SHOWN);
+    if (_window == nullptr) {
+        std::cout << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        return false;
+    }
 
-SpriteSheet::~SpriteSheet()
-{
-    SDL_DestroyTexture(_sheet);
+    _renderer = SDL_CreateRenderer(_window, -1, (SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED));
+    if (_renderer == nullptr) {
+        std::cout << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        return false;
+    }
+
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+    SDL_RenderSetLogicalSize(_renderer, _game_width, _game_height);
+
+    return true;
 }
 
-SDL_Rect SpriteSheet::getSpriteSource(int spr_col, int spr_row)
-{
-    return SDL_Rect{spr_col * _spr_width, spr_row * _spr_height, _spr_width, _spr_height };
-}
-
-SDL_Texture* SpriteSheet::getTexture() { return _sheet; }
-
-SDL_Renderer* SpriteSheet::getRenderer() { return _renderer; }
-
-void SpriteSheet::renderSprite(SDL_Rect* src_rect, SDL_Rect* dest_rect)
-{
-    SDL_RenderCopy(_renderer, _sheet, src_rect, dest_rect);
+RenderContext::~RenderContext() {
+    SDL_DestroyRenderer(_renderer);
+    SDL_DestroyWindow(_window);
 }
 
 
-class Sprite
-{
-public:
-    Sprite(SpriteSheet* src_sheet, int sheet_col, int sheet_row);
-    void render(vec2 pos);
-    vec2 getSize();
-private:
-    SpriteSheet* _sheet;
-    SDL_Rect _src_rect;
-    SDL_Rect _dst_rect;
-};
-
-Sprite::Sprite(SpriteSheet* src_sheet, int sheet_col, int sheet_row)
-    : _sheet{ src_sheet }
-    , _src_rect{ _sheet->getSpriteSource(sheet_col, sheet_row) }
-    , _dst_rect{ SDL_Rect{ 0, 0, _src_rect.w, _src_rect.h } }
-{}
-
-void Sprite::render(vec2 pos)
-{
-    _dst_rect.x = pos.x;
-    _dst_rect.y = pos.y;
-    _sheet->renderSprite(&_src_rect, &_dst_rect);
+SDL_Texture* RenderContext::loadTexture(const char* file) {
+    return IMG_LoadTexture(_renderer, file);
 }
 
-vec2 Sprite::getSize() { return vec2{ _src_rect.w, _src_rect.h }; }
+void RenderContext::setDrawColor(int r, int g, int b) {
+    SDL_SetRenderDrawColor(_renderer, r, g, b, 0xFF);
+}
 
-enum Suit
-{
+void RenderContext::clearScreen() {
+    SDL_RenderClear(_renderer);
+}
+
+void RenderContext::renderSprite(Sprite sprite, rect* dst_rect) {
+    SDL_RenderCopy(_renderer, sprite.texture, &sprite.src_rect, dst_rect);
+}
+
+void RenderContext::present() {
+    SDL_RenderPresent(_renderer);
+}
+
+
+enum Suit {
     Spades = 0,
     Diamonds = 1,
     Clubs = 2,
     Hearts = 3
 };
 
-enum CardColor
-{
+enum CardColor {
     Black,
     Red
 };
 
-class Card
-{
-public:
-    Card(SpriteSheet* src_sheet, Suit suit, int rank, vec2 pos);
+struct Card {
+    Card(SpriteSheet* src_sheet, Suit suit, int rank);
 
     CardColor getColor();
-    void render();
 
-    vec2 getSize();
-    vec2 getPosition();
-    void setPosition(vec2 pos);
+    Sprite getSprite();
 
-    int getRank() { return _rank; }
-private:
-    Suit _suit;
-    int _rank;
-    Sprite _sprite;
-    vec2 _pos;
+    rect getArea();
+
+    void setPosition(int x, int y);
+
+    int getRank() { return rank; }
+
+    Suit suit;
+    int rank;
+    Sprite sprite;
+    rect area;
 };
 
-Card::Card(SpriteSheet* src_sheet, Suit suit, int rank, vec2 pos = {0, 0})
-    : _suit{ suit }
-    , _rank{rank }
-    , _sprite(src_sheet, _suit, (_rank - 1))
-    , _pos{ pos }
-{}
+Card::Card(SpriteSheet* src_sheet, Suit suit, int rank)
+        : suit{suit}, rank{rank}, sprite{src_sheet->createSprite(suit, rank - 1)},
+          area{0, 0, sprite.src_rect.w, sprite.src_rect.h} {}
 
-CardColor Card::getColor()
-{
-    if (_suit == Suit::Spades || _suit == Suit::Clubs)
-    {
+CardColor Card::getColor() {
+    if (suit == Suit::Spades || suit == Suit::Clubs) {
         return CardColor::Black;
     }
 
     return CardColor::Red;
 }
 
-vec2 Card::getSize() { return _sprite.getSize(); }
-vec2 Card::getPosition() { return _pos; }
-void Card::setPosition(vec2 pos) { _pos = pos; }
-void Card::render() { _sprite.render(_pos); }
+Sprite Card::getSprite() {
+    return sprite;
+}
+
+rect Card::getArea() { return area; }
+
+void Card::setPosition(int x, int y) {
+    area.x = x;
+    area.y = y;
+}
 
 
 int main(int argc, char** argv) {
-    if (SDL_Init(SDL_INIT_VIDEO) < 0)
-    {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
-    }
-    else
-    {
-        Screen screen("Hello World!", SCREEN_WIDTH, SCREEN_HEIGHT);
-        screen.setScale(3);
-        if (screen.init())
-        {
-            SpriteSheet spriteSheet(screen.getRenderer(), ASSETS_PATH"card_spritesheet.png", 32, 48);
+    } else {
+        RenderContext renderContext("Solitaire", SCREEN_WIDTH, SCREEN_HEIGHT, 3);
+        if (renderContext.init()) {
+            SpriteSheet spriteSheet(renderContext.loadTexture(ASSETS_PATH"card_spritesheet.png"), 32, 48);
 
-//            Card card(&spriteSheet, Suit::Clubs, 12, { 20, 20 });
 
             std::vector<Card> cards{};
             cards.reserve(10);
             for (int i = 0; i < 10; ++i) {
-                cards.emplace_back(&spriteSheet, Suit::Spades, i + 2, vec2 { 20, 20 + (i * 13) });
+                cards.emplace_back(&spriteSheet, Suit::Spades, i + 2);
+                cards.back().setPosition(20, 20 + (i * 13));
             }
 
             bool quit = false;
             SDL_Event e;
 
-            while(!quit)
-            {
-                while(SDL_PollEvent(&e) != 0)
-                {
-                    if(e.type == SDL_QUIT)
-                    {
+            while (!quit) {
+                while (SDL_PollEvent(&e) != 0) {
+                    if (e.type == SDL_QUIT) {
                         quit = true;
                     }
 
-                    if(e.type == SDL_KEYDOWN)
-                    {
-                        if(e.key.keysym.sym == SDLK_EQUALS)
-                        {
-                            screen.scaleUp();
-                        }
-                        if(e.key.keysym.sym == SDLK_MINUS)
-                        {
-                            screen.scaleDown();
-                        }
-                    }
+//                    if (e.type == SDL_KEYDOWN) {
+//                        if (e.key.keysym.sym == SDLK_EQUALS) {
+//                            screen.scaleUp();
+//                        }
+//                        if (e.key.keysym.sym == SDLK_MINUS) {
+//                            screen.scaleDown();
+//                        }
+//                    }
 
-                    if(e.type == SDL_MOUSEBUTTONDOWN)
-                    {
+                    if (e.type == SDL_MOUSEBUTTONUP) {
                         auto x = e.button.x;
                         auto y = e.button.y;
                         std::cout << "X: " << x << "\nY: " << y << std::endl;
-                        for(auto card_i = cards.rbegin(); card_i != cards.rend(); ++card_i)
-                        {
-                            vec2 pos{ card_i->getPosition() };
-                            vec2 size{ card_i->getSize() };
-                            if (x > pos.x && x < pos.x + size.x && y > pos.y && y < pos.y + size.y)
-                            {
+                        for (auto card_i = cards.rbegin(); card_i != cards.rend(); ++card_i) {
+                            rect c_area{card_i->getArea()};
+                            if (x > c_area.x && x < c_area.x + c_area.w && y > c_area.y && y < c_area.y + c_area.h) {
                                 std::cout << "Rank: " << card_i->getRank() << "\n" << std::endl;
                                 break;
                             }
@@ -207,15 +220,14 @@ int main(int argc, char** argv) {
                     }
                 }
 
-                SDL_SetRenderDrawColor(screen.getRenderer(), 22, 128, 17, 0xFF);
-                SDL_RenderClear(screen.getRenderer());
+                renderContext.setDrawColor(22, 128, 17);
+                renderContext.clearScreen();
 
-                for(auto card_i = cards.begin(); card_i != cards.end(); ++card_i)
-                {
-                    card_i->render();
+                for (auto card_i = cards.begin(); card_i != cards.end(); ++card_i) {
+                    renderContext.renderSprite(card_i->getSprite(), &card_i->area);
                 }
 
-                SDL_RenderPresent(screen.getRenderer());
+                renderContext.present();
             }
         }
     }
