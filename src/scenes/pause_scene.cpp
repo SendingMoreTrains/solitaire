@@ -61,6 +61,7 @@ public:
             }
             else if (text_new_game.is_within_bounds(input_state->mouse.pos))
             {
+                paused_scene->reset();
                 return unpause();
             }
             else if (text_quit.is_within_bounds(input_state->mouse.pos))

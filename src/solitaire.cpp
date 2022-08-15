@@ -37,7 +37,7 @@ public:
         game->initialize_board(&card_sprites, &state);
     }
 
-    void reset()
+    void redeal()
     {
         state.clear();
         game->initialize_board(&card_sprites, &state);

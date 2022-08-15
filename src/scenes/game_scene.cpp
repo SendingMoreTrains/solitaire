@@ -13,6 +13,11 @@ public:
         solitaire.start_game();
     }
 
+    virtual void reset()
+    {
+        solitaire.redeal();
+    }
+
     virtual void update(InputState* input_state)
     {
         if (input_state->keys.get_state(SDLK_ESCAPE).was_pressed)

@@ -48,9 +48,7 @@ void send_quit_event()
 }
 
 #include "engine/engine.h"
-
 #include "solitaire.cpp"
-
 #include "scenes/scene.h"
 
 RenderedText current_text{};
@@ -118,7 +116,7 @@ int main(int argc, char** argv) {
 
                     if (inputState.keys.get_state(SDLK_r).was_pressed)
                     {
-                        solitaire.reset();
+                        solitaire.redeal();
                     }
 
                     // solitaire.update(&inputState);
