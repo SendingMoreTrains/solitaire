@@ -113,6 +113,11 @@ struct TableauItem
     virtual void handle_drag_start() {}; // mouse goes down and starts to move
     virtual void handle_drop(DragState* drag_state) {}; // mouse released from drag
 
+    virtual void render(RenderContext* rc)
+    {
+        rc->renderSprite(sprite, &area);
+    }
+
     // Assumes cards flow either left->right or top->bottom
     bool is_within_bounds(vec2 pos)
     {
@@ -147,10 +152,22 @@ struct TableauItem
 
         return nullptr;
     }
+};
 
-    void render(RenderContext* rc)
+
+using PileRenderFunction = void(*)(RenderContext* rc, std::vector<Card>* cards);
+
+template <PileRenderFunction RenderFunction>
+struct Pile
+{
+    virtual void handle_click() {}; // mouse down & up on same element
+    virtual void handle_drag_start() {}; // mouse goes down and starts to move
+    virtual void handle_drop(DragState* drag_state) {}; // mouse released from drag
+
+    virtual void render(RenderContext* rc)
     {
-        rc->renderSprite(sprite, &area);
+        if (cards.empty()) { rc->renderSprite(sprite, &area); }
+        else { RenderFunction(rc, &cards); }
     }
 };
 
