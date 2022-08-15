@@ -1,10 +1,3 @@
-struct DragState
-{
-    bool active;
-    Card* grabbed_card;
-    vec2 mouse_offset;
-};
-
 
 enum Suit
 {
@@ -33,52 +26,16 @@ struct Card
         , sprite{ src_sheet->createSprite(suit, rank - 1) }
         , area{ 0, 0, sprite.src_rect.w, sprite.src_rect.h }
     {}
-};
 
-
-struct TableauItem
-{
-    rect area;
-    Sprite sprite;
-    std::vector<Card> cards;
-
-    TableauItem(rect area, Sprite sprite)
-        : area{ area }
-        , sprite{ sprite }
-        , cards{}
-    {}
-
-    virtual void handle_click() {}; // mouse down & up on same element
-    virtual void handle_drag_start() {}; // mouse goes down and starts to move
-    virtual void handle_drop(DragState* dragState) {}; // mouse released from drag
-
-    // Assumes cards flow either left->right or top->bottom
     bool is_within_bounds(vec2 pos)
     {
-        vec2 upper_left{ area.x, area.y };
-
-        rect lower_right_area;
-        if (cards.empty()) { lower_right_area = area }
-        else { lower_right_area = cards.back().area }
-
-        rect effective_area{
-            upper_left.x;
-            upper_left.y;
-            (lower_right_area.x + lower_right_area.w) - upper_left.x;
-            (lower_right_area.y + lower_right_area.h) - upper_left.x;
-        };
-
-        return (pos.x > effective_area->x
-                && pos.x < effective_area->x + effective_area->w
-                && pos.y > effective_area->y
-                && pos.y < effective_area->y + effective_area->h);
-    }
-
-    void render(const RenderContext& rc)
-    {
-        rc.renderSprite(sprite, &area);
+        return (pos.x > area.x
+                && pos.x < area.x + area.w
+                && pos.y > area.y
+                && pos.y < area.y + area.h);
     }
 };
+
 
 using DeckGenerationFunction = std::vector<Card>(*)(SpriteSheet*);
 namespace DeckGenerators
@@ -95,6 +52,8 @@ namespace DeckGenerators
                 result.emplace_back(src_sheet, s, r);
             }
         }
+
+        return result;
     }
 }
 
@@ -124,29 +83,83 @@ struct Deck
         }
     }
 
-    void shuffle(std::vector<Card>* cards)
+    void shuffle()
     {
         // TODO: Shuffle cards here
     }
+};
 
-
+struct DragState
+{
+    bool active;
+    Card* grabbed_card;
+    vec2 mouse_offset;
 };
 
 
-TableauItem::handle_drop(DragState& dragState)
+struct TableauItem
 {
-    if (can_accept(cards.back(), dragState.cards.front()))
-    {
-        take_cards(&dragState.cards);
-        dragState.end_drag();
-    }
-}
+    rect area;
+    Sprite sprite;
+    std::vector<Card> cards;
 
-// Game/Board does following:
-//  Defines TableauItems and initial positions -\
-//  Creates deck with required cards           --+-> initialize_board
-//  Deals cards to TableauItems                -/
-//  Checks for win condition                   ----> is_game_over
+    TableauItem(rect area, Sprite sprite)
+        : area{ area }
+        , sprite{ sprite }
+        , cards{}
+    {}
+
+    virtual void handle_click() {}; // mouse down & up on same element
+    virtual void handle_drag_start() {}; // mouse goes down and starts to move
+    virtual void handle_drop(DragState* drag_state) {}; // mouse released from drag
+
+    // Assumes cards flow either left->right or top->bottom
+    bool is_within_bounds(vec2 pos)
+    {
+        vec2 upper_left{ area.x, area.y };
+
+        rect lower_right_area;
+        if (cards.empty()) { lower_right_area = area; }
+        else { lower_right_area = cards.back().area; }
+
+        rect effective_area{
+            upper_left.x,
+            upper_left.y,
+            (lower_right_area.x + lower_right_area.w) - upper_left.x,
+            (lower_right_area.y + lower_right_area.h) - upper_left.x
+        };
+
+        return (pos.x > effective_area.x
+                && pos.x < effective_area.x + effective_area.w
+                && pos.y > effective_area.y
+                && pos.y < effective_area.y + effective_area.h);
+    }
+
+    Card* card_clicked(vec2 pos)
+    {
+        if (cards.empty()) { return nullptr; }
+
+        for(auto card_i = cards.rbegin(); card_i != cards.rend(); ++card_i)
+        {
+            Card* card = &(*card_i);
+            if (card->is_within_bounds(pos)) { return card; }
+        }
+
+        return nullptr;
+    }
+
+    void render(RenderContext* rc)
+    {
+        rc->renderSprite(sprite, &area);
+    }
+};
+
+/* Game/Board does following:
+ *   Defines TableauItems and initial positions -\
+ *   Creates deck with required cards           --+-> initialize_board
+ *   Deals cards to TableauItems                -/
+ *   Checks for win condition                   ----> is_game_over
+ */
 struct GameState
 {
     DragState drag_state; // Cards being dragged
@@ -156,11 +169,14 @@ struct GameState
     // Cards themselves
     // Render order needs to be handled by owning tableau items
     // Delegate logic to tableau items?
-    std::vector<Card> cards;
-    Deck cards;
+    // std::vector<Card> cards;
+    Deck deck;
     //-----------------------
-};
 
+    GameState(SpriteSheet* sprite_sheet)
+        : deck{ sprite_sheet }
+    {}
+};
 
 struct Game
 {
@@ -177,12 +193,38 @@ struct Playground : Game
     virtual void initialize_board(GameState* state)
     {
         state->deck.add_deck();
-        state->shuffle();
+        state->deck.shuffle();
+        std::cout << "Size: " << state->deck.cards.size() << std::endl;
+    }
+
+    virtual void is_game_over()
+    {
+
     }
 };
 
-struct Solitaire
+class Solitaire
 {
+    SpriteSheet sprite_sheet;
     // Board board;
     GameState state;
+
+public:
+    Solitaire(RenderContext* render_context)
+        : sprite_sheet(render_context->loadTexture("res/card_spritesheet.png"), 32, 48)
+        , state(&sprite_sheet)
+    {
+        Playground pg{};
+        pg.initialize_board(&state);
+    }
+
+    void update(InputState* input_state)
+    {
+
+    }
+
+    void render(RenderContext* render_context)
+    {
+
+    }
 };

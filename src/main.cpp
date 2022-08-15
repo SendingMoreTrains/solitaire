@@ -41,7 +41,7 @@ struct vec2 {
 #include "engine/graphics.cpp"
 #include "engine/input.cpp"
 
-#include "solitaire.cpp"
+#include "nsolitaire.cpp"
 
 int main(int argc, char** argv) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
