@@ -14,6 +14,28 @@ typedef SDL_Rect rect;
 
 struct vec2 {
     int x, y;
+
+    vec2 operator+(const vec2& right)
+    {
+        return vec2 { x + right.x, y + right.y };
+    }
+
+    void operator+=(const vec2& right)
+    {
+        this->x += right.x;
+        this->y += right.y;
+    }
+
+    vec2 operator-(const vec2& right)
+    {
+        return vec2 { x - right.x, y - right.y };
+    }
+
+    void operator-=(const vec2& right)
+    {
+        this->x -= right.x;
+        this->y -= right.y;
+    }
 };
 
 #include "engine/graphics.cpp"

@@ -178,27 +178,19 @@ public:
             clicked_card = scanForClick(&pileOne, inputState->mouse.pos);
             if (clicked_card)
             {
-                // vec2 clicked_card_pos{ clicked_card->getPosition() };
-                // dragState.pile.addCards(pileOne.takeFromCard(clicked_card));
-                // dragState.offset = vec2{ mouse_x - clicked_card_pos.x, mouse_y - clicked_card_pos.y };
-                // dragState.active = true;
                 dragState.start_drag(pileOne.takeFromCard(clicked_card), inputState->mouse.pos);
             }
 
             clicked_card = scanForClick(&pileTwo, inputState->mouse.pos);
             if (clicked_card)
             {
-                // vec2 clicked_card_pos{ clicked_card->getPosition() };
-                // dragState.pile.addCards(pileTwo.takeFromCard(clicked_card));
-                // dragState.offset = vec2{ mouse_x - clicked_card_pos.x, mouse_y - clicked_card_pos.y };
-                // dragState.active = true;
                 dragState.start_drag(pileTwo.takeFromCard(clicked_card), inputState->mouse.pos);
             }
         }
 
         if (dragState.active)
         {
-            dragState.pile.setPosition(inputState->mouse.pos.x - dragState.offset.x, inputState->mouse.pos.y - dragState.offset.y);
+            dragState.pile.setPosition(inputState->mouse.pos - dragState.offset);
         }
 
         if (inputState->mouse.left.was_released)
