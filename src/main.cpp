@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
             {
                 // Font Init for test
                 {
-                    OutlineFont test{ "res/gameovercre1.ttf", 32, 2 };
+                    OutlineFont test{ "res/gameovercre1.ttf", 16, 1 };
 
                     SDL_Surface* text_surface{ test.render_outlined_text("Testing 1 2 3, FreeCell") };
                     font_rect = {0, 0, text_surface->w, text_surface->h};

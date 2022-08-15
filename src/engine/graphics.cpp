@@ -41,7 +41,10 @@ public:
 
     bool init()
     {
-        _window = SDL_CreateWindow(_title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, _game_width * _window_scale,
+        _window = SDL_CreateWindow(_title,
+                                   SDL_WINDOWPOS_CENTERED,
+                                   SDL_WINDOWPOS_CENTERED,
+                                   _game_width * _window_scale,
                                    _game_height * _window_scale,
                                    SDL_WINDOW_SHOWN);
         if (_window == nullptr) {
@@ -49,7 +52,12 @@ public:
             return false;
         }
 
+#if BENCHMARK
         _renderer = SDL_CreateRenderer(_window, -1, (SDL_RENDERER_ACCELERATED));
+#else
+        _renderer = SDL_CreateRenderer(_window, -1, (SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED));
+#endif
+
         if (_renderer == nullptr) {
             std::cout << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
             return false;
