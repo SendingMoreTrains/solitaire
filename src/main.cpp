@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <vector>
+#include <map>
 #include <iostream>
 #include <algorithm>
 #include <iterator>
@@ -45,10 +46,14 @@ struct vec2 {
 
 #include "nsolitaire.cpp"
 
-TTF_Font* base_font;
-TTF_Font* outline_font;
-SDL_Rect font_rect;
-SDL_Texture* solitaire_texture;
+struct RenderedText
+{
+    SDL_Rect area;
+    SDL_Texture* texture;
+};
+
+RenderedText current_text{};
+
 
 int main(int argc, char** argv) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -61,17 +66,6 @@ int main(int argc, char** argv) {
             RenderContext renderContext("Solitaire", SCREEN_WIDTH, SCREEN_HEIGHT, 3);
             if (renderContext.init())
             {
-                // Font Init for test
-                {
-                    OutlineFont test{ "res/gameovercre1.ttf", 16, 1 };
-
-                    SDL_Surface* text_surface{ test.render_outlined_text("Testing 1 2 3, FreeCell") };
-                    font_rect = {0, 0, text_surface->w, text_surface->h};
-
-                    solitaire_texture = renderContext.create_texture(text_surface);
-
-                    SDL_FreeSurface(text_surface);
-                }
                 InputState inputState{};
 
                 Solitaire solitaire(&renderContext);
@@ -83,6 +77,62 @@ int main(int argc, char** argv) {
 
                 bool quit = false;
                 SDL_Event e;
+
+                int font_index{ 0 };
+                std::vector<RenderedText> test_texts;
+                test_texts.reserve(7);
+
+                std::string font_paths_8[4]
+                    {
+                        "res/8-BIT WONDER.TTF",
+                        "res/Arcadepix Plus.ttf",
+                        "res/gameovercre1.ttf",
+                        "res/superstar_memesbruh03.ttf",
+                    };
+                for (auto& font_path : font_paths_8)
+                {
+                    OutlineFont temp{ font_path.c_str(), 16, 1 };
+                    SDL_Surface* text_surface{ temp.render_outlined_text("Testing 1 2 3, FreeCell") };
+
+                    rect area{ 0, 0, text_surface->w, text_surface->h };
+                    SDL_Texture* texture = renderContext.create_texture(text_surface);
+
+                    test_texts.push_back(RenderedText {area, texture});
+
+                    SDL_FreeSurface(text_surface);
+                }
+
+                std::string font_paths_18[1] { "res/8-bit-pusab.ttf" };
+                for (auto& font_path : font_paths_18)
+                {
+                    OutlineFont temp{ font_path.c_str(), 18, 1 };
+                    SDL_Surface* text_surface{ temp.render_outlined_text("Testing 1 2 3, FreeCell") };
+
+                    rect area{ 0, 0, text_surface->w, text_surface->h };
+                    SDL_Texture* texture = renderContext.create_texture(text_surface);
+
+                    test_texts.push_back(RenderedText {area, texture});
+
+                    SDL_FreeSurface(text_surface);
+                }
+
+                std::string font_paths_20[1] { "res/UpheavalPro.ttf" };
+                for (auto& font_path : font_paths_20)
+                {
+                    OutlineFont temp{ font_path.c_str(), 20, 1 };
+                    SDL_Surface* text_surface{ temp.render_outlined_text("Testing 1 2 3, FreeCell") };
+
+                    rect area{ 0, 0, text_surface->w, text_surface->h };
+                    SDL_Texture* texture = renderContext.create_texture(text_surface);
+
+                    test_texts.push_back(RenderedText {area, texture});
+
+                    SDL_FreeSurface(text_surface);
+                }
+
+                font_index = 0;
+                current_text = test_texts[font_index];
+
 
                 // GAME LOOP
                 while (!quit)
@@ -106,17 +156,38 @@ int main(int argc, char** argv) {
                         // }
 
                         processSdlEvent(&inputState, &e);
+
                     }
 
-
                     solitaire.update(&inputState);
+
+                    if (inputState.keys.get_state(SDLK_n).was_pressed)
+                    {
+                        ++font_index;
+
+                        if (font_index >= (int)test_texts.size())
+                            font_index = 0;
+
+                        current_text = test_texts[font_index];
+                    }
+
+                    if (inputState.keys.get_state(SDLK_p).was_pressed)
+                    {
+                        --font_index;
+
+                        if (font_index < 0)
+                            font_index += (int)test_texts.size();
+
+                        current_text = test_texts[font_index];
+                    }
 
                     solitaire.render(&renderContext);
 
                     // Font Test
                     {
-                        rect dst_rect{ 100, 240, font_rect.w, font_rect.h };
-                        SDL_RenderCopy(renderContext._renderer, solitaire_texture, NULL, &dst_rect);
+
+                        rect dst_rect{ 20, 240, current_text.area.w, current_text.area.h };
+                        SDL_RenderCopy(renderContext._renderer, current_text.texture, NULL, &dst_rect);
                     }
 
                     renderContext.present();
