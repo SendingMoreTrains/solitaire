@@ -26,7 +26,7 @@ struct Pile
         , area{ 0, 0, sprite.src_rect.w, sprite.src_rect.h }
     {}
 
-    void addCard(Card card)
+    void addCard(Card incoming)
     {
         vec2 next_card_pos{ area.x, area.y };
 
@@ -35,8 +35,14 @@ struct Pile
             next_card_pos.y = cards.back().getPosition().y + 13;
         }
 
-        card.setPosition(next_card_pos);
-        cards.push_back(card);
+        incoming.setPosition(next_card_pos);
+        cards.push_back(incoming);
+    }
+
+    void addCards(std::vector<Card> incoming_cards)
+    {
+        cards.reserve(cards.size() + incoming_cards.size());
+        cards.insert(cards.end(), incoming_cards.begin(), incoming_cards.end());
     }
 
     void updateCardsPosition()
@@ -120,11 +126,17 @@ class Solitaire
     Pile pileOne;
     Pile pileTwo;
 
+    bool dragging;
+    Pile dragPile;
+    vec2 dragOffset;
+
 public:
     Solitaire(RenderContext* renderContext)
         : spriteSheet(renderContext->loadTexture("res/card_spritesheet.png"), 32, 48)
         , pileOne(spriteSheet.createSprite(0, 15))
         , pileTwo(spriteSheet.createSprite(0, 15))
+        , dragging{ false }
+        , dragOffset{}
     {
         pileOne.cards.reserve(10);
         pileOne.setPosition(20, 20);
@@ -143,22 +155,41 @@ public:
 
     void update(InputState* inputState)
     {
-        if (inputState->mouse.left.was_released) {
-            auto x = inputState->mouse.x;
-            auto y = inputState->mouse.y;
-
-            Card* clicked = scanForClick(&pileOne, x, y);
-            if (clicked)
+        auto mouse_x = inputState->mouse.x;
+        auto mouse_y = inputState->mouse.y;
+        if (inputState->mouse.left.was_pressed)
+        {
+            Card* clicked_card = nullptr;
+            clicked_card = scanForClick(&pileOne, mouse_x, mouse_y);
+            if (clicked_card)
             {
-                pileOne.takeFromCard(clicked);
+                vec2 clicked_card_pos{ clicked_card->getPosition() };
+                dragPile.addCards(pileOne.takeFromCard(clicked_card));
+                dragOffset = vec2{ mouse_x - clicked_card_pos.x, mouse_y - clicked_card_pos.y };
+                dragging = true;
             }
-            else
+
+            clicked_card = scanForClick(&pileTwo, mouse_x, mouse_y);
+            if (clicked_card)
             {
-                clicked = scanForClick(&pileTwo, x, y);
-                if (clicked)
-                {
-                    pileTwo.takeFromCard(clicked);
-                }
+                vec2 clicked_card_pos{ clicked_card->getPosition() };
+                dragPile.addCards(pileTwo.takeFromCard(clicked_card));
+                dragOffset = vec2{ mouse_x - clicked_card_pos.x, mouse_y - clicked_card_pos.y };
+                dragging = true;
+            }
+        }
+
+        if (dragging)
+        {
+            dragPile.setPosition(mouse_x - dragOffset.x, mouse_y - dragOffset.y);
+        }
+
+        if (inputState->mouse.left.was_released)
+        {
+            dragging = false;
+            if (dragPile.cards.size() > 0)
+            {
+                dragPile.cards.clear();
             }
         }
     }
@@ -170,6 +201,11 @@ public:
 
         pileOne.render(renderContext);
         pileTwo.render(renderContext);
+
+        if (dragging)
+        {
+            dragPile.render(renderContext);
+        }
 
         renderContext->present();
     }
