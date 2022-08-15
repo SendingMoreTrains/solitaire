@@ -1,4 +1,4 @@
-struct FreeCell : Game
+struct FreeCell : BaseGame
 {
     enum PileTypes
     {

@@ -60,11 +60,9 @@ SDL_Surface* CreateSDL_RGBA_Surface(int width, int height)
     return SDL_CreateRGBSurface(0,width,height,32,rmask, gmask, bmask, amask);
 }
 
-#include "engine/graphics.cpp"
-#include "engine/text.cpp"
-#include "engine/input.cpp"
+#include "engine/engine.h"
 
-#include "nsolitaire.cpp"
+#include "solitaire.cpp"
 
 struct RenderedText
 {

@@ -19,50 +19,42 @@ struct Card
     Sprite sprite;
     rect area;
 
-    Card(SpriteSheet* src_sheet, Suit suit, int rank);
+    Card(Suit suit, int rank, Sprite sprite)
+        : suit{ suit }
+        , rank{ rank }
+        , sprite{ sprite }
+        , area{ sprite.src_rect }
+    {}
 
-    CardColor getColor();
-
-    void setPosition(int x, int y);
-
-    void setPosition(vec2 new_pos)
+    bool is_within_bounds(vec2 pos)
     {
-        area.x = new_pos.x;
-        area.y = new_pos.y;
+        return (pos.x > area.x
+                && pos.x < area.x + area.w
+                && pos.y > area.y
+                && pos.y < area.y + area.h);
     }
 
-    vec2 getPosition()
+    CardColor get_color()
     {
-        return vec2{ area.x, area.y };
+        if (suit == Spades || suit == Clubs) { return Black; }
+        return Red;
     }
 
-    void render(RenderContext* rc);
+    vec2 get_position() { return vec2 { area.x, area.y }; }
+
+    void set_position(vec2 pos)
+    {
+        area.x = pos.x;
+        area.y = pos.y;
+    }
+
+    void print()
+    {
+        std::cout << "Suit: " << (int)suit << ", Rank: " << rank << std::endl;
+    }
+
+    void render(RenderContext* rc)
+    {
+        rc->renderSprite(sprite, &area);
+    }
 };
-
-Card::Card(SpriteSheet* src_sheet, Suit suit, int rank)
-    : suit{ suit }
-    , rank{ rank }
-    , sprite{ src_sheet->createSprite(suit, rank - 1) }
-    , area{ 0, 0, sprite.src_rect.w, sprite.src_rect.h }
-{}
-
-CardColor Card::getColor()
-{
-    if (suit == Suit::Spades || suit == Suit::Clubs)
-    {
-        return CardColor::Black;
-    }
-
-    return CardColor::Red;
-}
-
-void Card::setPosition(int x, int y)
-{
-    area.x = x;
-    area.y = y;
-}
-
-void Card::render(RenderContext* rc)
-{
-    rc->renderSprite(sprite, &area);
-}

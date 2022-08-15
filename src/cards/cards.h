@@ -1,1 +1,5 @@
 #include "card.cpp"
+#include "card_sprites.cpp"
+#include "deck.cpp"
+#include "pile_strategies.h"
+#include "pile.cpp"
