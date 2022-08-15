@@ -23,11 +23,11 @@ int main(int argc, char** argv) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
     } else {
-        RenderContext renderContext("Solitaire", SCREEN_WIDTH, SCREEN_HEIGHT, 2);
+        RenderContext renderContext("Solitaire", SCREEN_WIDTH, SCREEN_HEIGHT, 3);
         if (renderContext.init()) {
-            MouseState inputState;
+            InputState inputState{};
 
-            init(&renderContext);
+            Solitaire solitaire(&renderContext);
 
             bool quit = false;
             SDL_Event e;
@@ -40,22 +40,22 @@ int main(int argc, char** argv) {
                         quit = true;
                     }
 
-                    //                    if (e.type == SDL_KEYDOWN) {
-                    //                        if (e.key.keysym.sym == SDLK_EQUALS) {
-                    //                            screen.scaleUp();
-                    //                        }
-                    //                        if (e.key.keysym.sym == SDLK_MINUS) {
-                    //                            screen.scaleDown();
-                    //                        }
-                    //                    }
+                    // if (e.type == SDL_KEYDOWN) {
+                    //   if (e.key.keysym.sym == SDLK_EQUALS) {
+                    //     screen.scaleUp();
+                    //   }
+                    //   if (e.key.keysym.sym == SDLK_MINUS) {
+                    //     screen.scaleDown();
+                    //   }
+                    // }
 
-                    processInput(&inputState, &e);
+                    processSdlEvent(&inputState, &e);
                 }
 
 
-                update(&inputState);
+                solitaire.update(&inputState);
 
-                render(&renderContext);
+                solitaire.render(&renderContext);
             }
         }
     }

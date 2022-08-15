@@ -1,5 +1,5 @@
 struct ButtonState {
-    bool isDown, wasPressed, wasReleased;
+    bool is_down, was_pressed, was_released;
 };
 
 struct MouseState {
@@ -7,50 +7,54 @@ struct MouseState {
     ButtonState left, right;
 };
 
+struct InputState {
+    MouseState mouse;
+};
 
-void processFrameStart(MouseState* mouseState)
+
+void processFrameStart(InputState* inputState)
 {
-    mouseState->left.wasReleased = false;
-    mouseState->left.wasPressed = false;
-    mouseState->right.wasReleased = false;
-    mouseState->right.wasPressed = false;
+    inputState->mouse.left.was_released = false;
+    inputState->mouse.left.was_pressed = false;
+    inputState->mouse.right.was_released = false;
+    inputState->mouse.right.was_pressed = false;
 }
 
-void processInput(MouseState* mouseState, SDL_Event* event)
+void processSdlEvent(InputState* inputState, SDL_Event* event)
 {
     switch (event->type) {
     case SDL_MOUSEMOTION:
-        mouseState->x = event->motion.x;
-        mouseState->y = event->motion.y;
+        inputState->mouse.x = event->motion.x;
+        inputState->mouse.y = event->motion.y;
         break;
 
     case SDL_MOUSEBUTTONUP:
-        mouseState->x = event->button.x;
-        mouseState->y = event->button.y;
+        inputState->mouse.x = event->button.x;
+        inputState->mouse.y = event->button.y;
 
         if (event->button.button == SDL_BUTTON_LEFT) {
-            mouseState->left.wasReleased = true;
-            mouseState->left.isDown = false;
+            inputState->mouse.left.was_released = true;
+            inputState->mouse.left.is_down = false;
         }
 
         if (event->button.button == SDL_BUTTON_RIGHT) {
-            mouseState->right.wasReleased = true;
-            mouseState->right.isDown = false;
+            inputState->mouse.right.was_released = true;
+            inputState->mouse.right.is_down = false;
         }
         break;
 
     case SDL_MOUSEBUTTONDOWN:
-        mouseState->x = event->button.x;
-        mouseState->y = event->button.y;
+        inputState->mouse.x = event->button.x;
+        inputState->mouse.y = event->button.y;
 
         if (event->button.button == SDL_BUTTON_LEFT) {
-            mouseState->left.wasPressed = true;
-            mouseState->left.isDown = true;
+            inputState->mouse.left.was_pressed = true;
+            inputState->mouse.left.is_down = true;
         }
 
         if (event->button.button == SDL_BUTTON_RIGHT) {
-            mouseState->right.wasPressed = true;
-            mouseState->right.isDown = true;;
+            inputState->mouse.right.was_pressed = true;
+            inputState->mouse.right.is_down = true;;
         }
         break;
     }
