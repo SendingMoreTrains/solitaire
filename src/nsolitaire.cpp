@@ -22,12 +22,14 @@ struct Card
 {
     Suit suit;
     int rank;
+    Sprite sprite;
     rect area;
 
-    Card(Suit suit, int rank, rect area)
+    Card(Suit suit, int rank, Sprite sprite)
         : suit{ suit }
         , rank{ rank }
-        , area{ area }
+        , sprite{ sprite }
+        , area{ sprite.src_rect }
     {}
 
     bool is_within_bounds(vec2 pos)
@@ -56,13 +58,79 @@ struct Card
     {
         std::cout << "Suit: " << (int)suit << ", Rank: " << rank << std::endl;
     }
+
+    void render(RenderContext* rc)
+    {
+        rc->renderSprite(sprite, &area);
+    }
+};
+
+class CardSprites
+{
+public:
+    CardSprites(SpriteSheet* sprite_sheet)
+        : sprite_sheet{ sprite_sheet }
+        , sprites{}
+    {
+        for (int c = 0; c < 4; ++c)
+        {
+            for (int r = 0; r < 16; ++r)
+            {
+                sprites[(r * 4) + c] = sprite_sheet->createSprite(c, r);
+            }
+        }
+    }
+
+    int calc_index(int column, int row)
+    {
+        return (row * 4) + column;
+    }
+
+    Sprite get_card_sprite(Suit suit, int rank)
+    {
+        return sprites[calc_index((int)suit, (rank - 1))];
+    }
+
+    Sprite get_black_joker_sprite()
+    {
+        return sprites[calc_index(0, 13)];
+    }
+
+    Sprite get_red_joker_sprite()
+    {
+        return sprites[calc_index(1, 13)];
+    }
+
+    Sprite get_blue_back_sprite()
+    {
+        return sprites[calc_index(2, 13)];
+    }
+
+    Sprite get_red_back_sprite()
+    {
+        return sprites[calc_index(3, 13)];
+    }
+
+    Sprite get_empty_sprite()
+    {
+        return sprites[calc_index(0, 15)];
+    }
+
+    Sprite get_empty_suit_sprite(Suit suit)
+    {
+        return sprites[calc_index((int)suit, 14)];
+    }
+
+private:
+    SpriteSheet* sprite_sheet;
+    std::array<Sprite, 64> sprites;
 };
 
 
-using DeckGenerationFunction = std::vector<Card>(*)(rect);
+using DeckGenerationFunction = std::vector<Card>(*)(CardSprites*);
 namespace DeckGenerators
 {
-    std::vector<Card> create_normal_deck(rect card_size)
+    std::vector<Card> create_normal_deck(CardSprites* sprites)
     {
         std::vector<Card> result;
         result.reserve(52);
@@ -71,7 +139,7 @@ namespace DeckGenerators
         {
             for (int r = 1; r < 14; ++r)
             {
-                result.emplace_back(s, r, card_size);
+                result.emplace_back(s, r, sprites->get_card_sprite(s, r));
             }
         }
 
@@ -81,17 +149,17 @@ namespace DeckGenerators
 
 struct Deck
 {
+    CardSprites* card_sprites;
     std::vector<Card> cards;
-    rect card_size;
 
-    Deck(rect card_size)
-        : cards{}
-        , card_size{ card_size }
+    Deck(CardSprites* card_sprites)
+        : card_sprites{ card_sprites }
+        , cards{}
     {}
 
     void add_deck(DeckGenerationFunction generator = DeckGenerators::create_normal_deck)
     {
-        std::vector<Card> new_cards{ generator(card_size) };
+        std::vector<Card> new_cards{ generator(card_sprites) };
 
         cards.reserve(cards.capacity() + new_cards.size());
         std::move(new_cards.begin(), new_cards.end(), std::back_inserter(cards));
@@ -122,69 +190,6 @@ struct Deck
     }
 };
 
-
-// TODO: This is shit, find a better way
-class CardRenderer
-{
-public:
-    enum BackColor
-    {
-        Blue,
-        Red
-    };
-
-    CardRenderer(SpriteSheet* sprite_sheet, BackColor back_color = BackColor::Blue)
-        : sprite_sheet{ sprite_sheet }
-        , sprites{}
-        , back_color{ back_color }
-    {
-        for (int s = 0; s < 4; ++s)
-        {
-            for (int r = 0; r < 14; ++r)
-            {
-                sprites[(r * 4) + s] = sprite_sheet->createSprite(s, r);
-            }
-        }
-    }
-
-    int calc_index(int column, int row)
-    {
-        return (row * 4) + column;
-    }
-
-    void render_card(RenderContext* rc, Card& card)
-    {
-        rc->renderSprite(sprites[calc_index((int)card.suit, card.rank-1)], &card.area);
-    }
-
-    void render_blue_back(RenderContext* rc, vec2 pos)
-    {
-        rc->renderSprite(sprites[calc_index(2, 13)], pos);
-    }
-
-    void render_red_back(RenderContext* rc, vec2 pos)
-    {
-        rc->renderSprite(sprites[calc_index(3, 13)], pos);
-    }
-
-    void render_back(RenderContext* rc, vec2 pos)
-    {
-        if (back_color == BackColor::Blue)
-        {
-            render_blue_back(rc, pos);
-        }
-        else
-        {
-            render_red_back(rc, pos);
-        }
-    }
-
-private:
-    SpriteSheet* sprite_sheet;
-    std::array<Sprite, 56> sprites;
-
-    BackColor back_color;
-};
 
 using PilePositioningFunction = void(*)(vec2, std::vector<Card>&);
 namespace PilePositioningFunctions
@@ -360,7 +365,7 @@ struct Pile
         return nullptr;
     }
 
-    void render(RenderContext* rc, CardRenderer* cr)
+    void render(RenderContext* rc)
     {
         if (cards.empty())
         {
@@ -370,9 +375,7 @@ struct Pile
         {
             for (auto it = cards.begin(); it != cards.end(); ++it)
             {
-                cr->render_card(rc, *it);
-
-                // it->render(rc);
+                it->render(rc);
             }
         }
     }
@@ -413,13 +416,13 @@ struct DragState
         active = false;
     }
 
-    void render(RenderContext* rc, CardRenderer* cr)
+    void render(RenderContext* rc)
     {
         if (!active) { return; }
 
         for (auto card : cards)
         {
-            cr->render_card(rc, card);
+            card.render(rc);
         }
     }
 };
@@ -496,7 +499,7 @@ struct Game
     // Create and add tableau_items in their location
     // Deal cards from deck to Tableau
     //  Return to Solitaire to let game run
-    virtual void initialize_board(SpriteSheet*, Deck*, GameState*) = 0;
+    virtual void initialize_board(CardSprites*, Deck*, GameState*) = 0;
     virtual bool is_game_won(GameState*) = 0;
 
     // Allow Game to overrule certain actions before starting
@@ -504,6 +507,10 @@ struct Game
     virtual bool allow_drag(GameState*) { return true; }
     virtual bool allow_drop(GameState*, Pile*) { return true; }
 };
+
+
+#include "games/free_cell.cpp"
+
 
 struct Playground : Game
 {
@@ -513,7 +520,7 @@ struct Playground : Game
         Foundation = 1
     };
 
-    virtual void initialize_board(SpriteSheet* sprite_sheet, Deck* deck, GameState* state)
+    virtual void initialize_board(CardSprites* sprites, Deck* deck, GameState* state)
     {
         deck->add_deck();
         deck->shuffle();
@@ -522,21 +529,21 @@ struct Playground : Game
             PilePositioningFunctions::OffsetCascade,
             PileAcceptFunctions::Any,
             PileOrderingFunctions::Any,
-            sprite_sheet->createSprite(0, 14),
+            sprites->get_empty_sprite(),
             vec2 { 10, 10 });
 
         Pile* pile_two = new Pile(
             PilePositioningFunctions::OffsetCascade,
             PileAcceptFunctions::Any,
             PileOrderingFunctions::Any,
-            sprite_sheet->createSprite(1, 14),
+            sprites->get_empty_sprite(),
             vec2 { 50, 10 });
 
         Pile* foundation_pile = new Pile
             (PilePositioningFunctions::OffsetCascade,
              PileAcceptFunctions::Any,
              PileOrderingFunctions::Any,
-             sprite_sheet->createSprite(0, 14),
+             sprites->get_empty_sprite(),
              vec2 { 140, 20 });
 
         pile_two->add_card(deck->deal_card());
@@ -581,7 +588,7 @@ struct Playground : Game
 class Solitaire
 {
     SpriteSheet sprite_sheet;
-    CardRenderer card_renderer;
+    CardSprites card_sprites;
     // Board board;
     GameState state;
     Game* game;
@@ -590,16 +597,15 @@ class Solitaire
 public:
     Solitaire(RenderContext* render_context)
         : sprite_sheet(render_context->loadTexture("res/card_spritesheet.png"), 32, 48)
-        , card_renderer(&sprite_sheet)
+        , card_sprites(&sprite_sheet)
         , state()
         , game_won{ false }
     {
         game = new Playground();
 
-        rect card_size{ 0, 0, sprite_sheet.get_sprite_width(), sprite_sheet.get_sprite_height() };
-        Deck deck(card_size);
+        Deck deck(&card_sprites);
 
-        game->initialize_board(&sprite_sheet, &deck, &state);
+        game->initialize_board(&card_sprites, &deck, &state);
     }
     ~Solitaire() { delete game; }
 
@@ -675,9 +681,9 @@ public:
 
         for (auto pile : state.tableau.all_piles)
         {
-            pile->render(rc, &card_renderer);
+            pile->render(rc);
         }
 
-        state.drag.render(rc, &card_renderer);
+        state.drag.render(rc);
     }
 };
