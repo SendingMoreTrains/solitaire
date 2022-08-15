@@ -273,6 +273,7 @@ struct NewPile
 struct TableauState
 {
     std::map<int, std::vector<NewPile>> pile_map;
+    std::vector<NewPile*> all_piles;
 
     std::vector<NewPile>* get_piles_of_type(int pile_type)
     {
@@ -288,6 +289,7 @@ struct TableauState
         }
 
         pile_map[pile_type].push_back(std::move(*incoming_pile));
+        all_piles.push_back(&pile_map[pile_type].back());
     }
 };
 
