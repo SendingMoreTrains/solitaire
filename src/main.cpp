@@ -33,24 +33,21 @@ int main(int argc, char** argv) {
             SDL_Event e;
 
             while (!quit) {
-                inputState.left.wasReleased = false;
-                inputState.left.wasPressed = false;
-                inputState.right.wasReleased = false;
-                inputState.right.wasPressed = false;
+                processFrameStart(&inputState);
 
                 while (SDL_PollEvent(&e) != 0) {
                     if (e.type == SDL_QUIT) {
                         quit = true;
                     }
 
-//                    if (e.type == SDL_KEYDOWN) {
-//                        if (e.key.keysym.sym == SDLK_EQUALS) {
-//                            screen.scaleUp();
-//                        }
-//                        if (e.key.keysym.sym == SDLK_MINUS) {
-//                            screen.scaleDown();
-//                        }
-//                    }
+                    //                    if (e.type == SDL_KEYDOWN) {
+                    //                        if (e.key.keysym.sym == SDLK_EQUALS) {
+                    //                            screen.scaleUp();
+                    //                        }
+                    //                        if (e.key.keysym.sym == SDLK_MINUS) {
+                    //                            screen.scaleDown();
+                    //                        }
+                    //                    }
 
                     processInput(&inputState, &e);
                 }

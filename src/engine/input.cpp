@@ -7,6 +7,15 @@ struct MouseState {
     ButtonState left, right;
 };
 
+
+void processFrameStart(MouseState* mouseState)
+{
+    mouseState->left.wasReleased = false;
+    mouseState->left.wasPressed = false;
+    mouseState->right.wasReleased = false;
+    mouseState->right.wasPressed = false;
+}
+
 void processInput(MouseState* mouseState, SDL_Event* event)
 {
     switch (event->type) {
