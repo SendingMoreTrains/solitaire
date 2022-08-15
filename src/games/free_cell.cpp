@@ -13,6 +13,7 @@ struct FreeCell : Game
 
         // Initialize Free Cells
         builder
+            .set_type_id(Cell)
             .set_accept_function(PileAcceptFunctions::None)
             .set_empty_accept_function(PileEmptyAcceptFunctions::AnySingle)
             .set_positioning_function(PilePositioningFunctions::Aligned)
@@ -26,6 +27,7 @@ struct FreeCell : Game
 
         // Initialize Foundations
         builder
+            .set_type_id(Foundation)
             .set_accept_function(PileAcceptFunctions::FollowOrderingSingle)
             .set_empty_accept_function(PileEmptyAcceptFunctions::Aces)
             .set_ordering_function(PileOrderingFunctions::IncrementingSameSuit)
@@ -41,6 +43,7 @@ struct FreeCell : Game
 
         // Initialize Cascades
         builder
+            .set_type_id(Cascade)
             .set_accept_function(PileAcceptFunctions::FollowOrdering)
             .set_empty_accept_function(PileEmptyAcceptFunctions::Any)
             .set_ordering_function(PileOrderingFunctions::AlternateColorDecrementRank)
@@ -67,37 +70,42 @@ struct FreeCell : Game
         }
     }
 
-    int get_max_drag_amount(GameState* state, bool dropping_on_open_cascade = false)
+    int get_max_move_amount(GameState* state, Pile* drop_target = nullptr)
     {
         int open_cells{ 0 };
         int open_cascades{ 0 };
 
         for (auto const& pile : state->tableau.get_piles_of_type(Cell))
         {
-            if (pile->cards.size() == 0)
+            if (pile->cards.size() == 0
+                && &(*pile) != state->drag.source_pile
+                && &(*pile) != drop_target)
                 ++open_cells;
         }
 
         for (auto const& pile : state->tableau.get_piles_of_type(Cascade))
         {
-            if (pile->cards.size() == 0)
+            if (pile->cards.size() == 0
+                && &(*pile) != state->drag.source_pile
+                && &(*pile) != drop_target)
                 ++open_cascades;
         }
 
-        if (dropping_on_open_cascade) { --open_cascades; }
+        int result = (1 + open_cells) * ((1 << open_cascades));
 
-        return (1 + open_cells) * (pow(2, open_cascades));
+        std::cout << "Moveable amount: " << result << std::endl;
+
+        return result;
     }
 
     virtual bool allow_drag(GameState* state)
     {
-        return state->drag.cards.size() <= get_max_drag_amount(state);
+        return (int)state->drag.cards.size() <= get_max_move_amount(state);
     }
 
     virtual bool allow_drop(GameState* state, Pile* target_pile)
     {
-        bool is_pile_empty{ target_pile->cards.size() == 0 };
-        return state->drag.cards.size() <= get_max_drag_amount(state, is_pile_empty);
+        return (int)state->drag.cards.size() <= get_max_move_amount(state, target_pile);
     }
 
     virtual bool is_game_won(GameState* state)

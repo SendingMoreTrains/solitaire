@@ -3,7 +3,6 @@
 #include <array>
 #include <random>
 #include <chrono>
-#include <cmath>
 
 enum Suit
 {
@@ -204,6 +203,7 @@ public:
 
 struct Pile
 {
+    int type_id;
     PileAcceptFunction accept_function;
     PileEmptyAcceptFunction empty_accept_function;
     PileOrderingFunction ordering_function;
@@ -213,8 +213,9 @@ struct Pile
     rect area;
     std::vector<Card> cards;
 
-    Pile(PileAcceptFunction paf, PileEmptyAcceptFunction peaf, PileOrderingFunction pof, PilePositioningFunction ppf, Sprite empty_sprite, vec2 pos = { 0, 0 })
-        : accept_function{ paf }
+    Pile(int type_id, PileAcceptFunction paf, PileEmptyAcceptFunction peaf, PileOrderingFunction pof, PilePositioningFunction ppf, Sprite empty_sprite, vec2 pos = { 0, 0 })
+        : type_id{ type_id }
+        , accept_function{ paf }
         , empty_accept_function{ peaf }
         , ordering_function{ pof }
         , positioning_function{ ppf }
@@ -344,6 +345,7 @@ struct Pile
 class PileBuilder
 {
 private:
+    int type_id;
     PileAcceptFunction accept_function;
     PileEmptyAcceptFunction empty_accept_function;
     PileOrderingFunction ordering_function;
@@ -354,6 +356,7 @@ private:
 public:
     void reset()
     {
+        type_id = 0;
         accept_function = PileAcceptFunctions::Any;
         empty_accept_function = PileEmptyAcceptFunctions::Any;
         ordering_function = PileOrderingFunctions::Any;
@@ -369,7 +372,13 @@ public:
 
     Pile* build()
     {
-        return new Pile(accept_function, empty_accept_function, ordering_function, positioning_function, empty_sprite, pile_pos);
+        return new Pile(type_id, accept_function, empty_accept_function, ordering_function, positioning_function, empty_sprite, pile_pos);
+    }
+
+    PileBuilder& set_type_id(int type_id)
+    {
+        this->type_id = type_id;
+        return *this;
     }
 
     PileBuilder& set_accept_function(PileAcceptFunction paf)
@@ -557,6 +566,7 @@ struct Playground : Game
         deck.shuffle();
 
         Pile* pile = new Pile(
+            0,
             PileAcceptFunctions::Any,
             PileEmptyAcceptFunctions::Any,
             PileOrderingFunctions::Any,
@@ -565,6 +575,7 @@ struct Playground : Game
             vec2 { 10, 10 });
 
         Pile* pile_two = new Pile(
+            0,
             PileAcceptFunctions::Any,
             PileEmptyAcceptFunctions::Any,
             PileOrderingFunctions::Any,
@@ -573,12 +584,13 @@ struct Playground : Game
             vec2 { 50, 10 });
 
         Pile* foundation_pile = new Pile(
-             PileAcceptFunctions::Any,
-             PileEmptyAcceptFunctions::Any,
-             PileOrderingFunctions::Any,
-             PilePositioningFunctions::OffsetCascade,
-             sprites->get_empty_sprite(),
-             vec2 { 140, 20 });
+            0,
+            PileAcceptFunctions::Any,
+            PileEmptyAcceptFunctions::Any,
+            PileOrderingFunctions::Any,
+            PilePositioningFunctions::OffsetCascade,
+            sprites->get_empty_sprite(),
+            vec2 { 140, 20 });
 
         pile_two->add_card(deck.deal_card());
         pile->add_card(deck.deal_card());
