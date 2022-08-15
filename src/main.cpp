@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <vector>
+#include <iostream>
 
 #include "SDL.h"
 #include "SDL_image.h"
@@ -63,6 +65,7 @@ class Sprite
 public:
     Sprite(SpriteSheet* src_sheet, int sheet_col, int sheet_row);
     void render(vec2 pos);
+    vec2 getSize();
 private:
     SpriteSheet* _sheet;
     SDL_Rect _src_rect;
@@ -82,6 +85,8 @@ void Sprite::render(vec2 pos)
     _sheet->renderSprite(&_src_rect, &_dst_rect);
 }
 
+vec2 Sprite::getSize() { return vec2{ _src_rect.w, _src_rect.h }; }
+
 enum Suit
 {
     Spades = 0,
@@ -99,22 +104,27 @@ enum CardColor
 class Card
 {
 public:
-    Card(SpriteSheet* src_sheet, Suit suit, int value, vec2 pos);
+    Card(SpriteSheet* src_sheet, Suit suit, int rank, vec2 pos);
 
     CardColor getColor();
     void render();
+
+    vec2 getSize();
+    vec2 getPosition();
     void setPosition(vec2 pos);
+
+    int getRank() { return _rank; }
 private:
     Suit _suit;
-    int _value;
+    int _rank;
     Sprite _sprite;
     vec2 _pos;
 };
 
-Card::Card(SpriteSheet* src_sheet, Suit suit, int value, vec2 pos = {0, 0})
+Card::Card(SpriteSheet* src_sheet, Suit suit, int rank, vec2 pos = {0, 0})
     : _suit{ suit }
-    , _value{ value }
-    , _sprite(src_sheet, _suit, (_value - 1))
+    , _rank{rank }
+    , _sprite(src_sheet, _suit, (_rank - 1))
     , _pos{ pos }
 {}
 
@@ -128,6 +138,8 @@ CardColor Card::getColor()
     return CardColor::Red;
 }
 
+vec2 Card::getSize() { return _sprite.getSize(); }
+vec2 Card::getPosition() { return _pos; }
 void Card::setPosition(vec2 pos) { _pos = pos; }
 void Card::render() { _sprite.render(_pos); }
 
@@ -140,12 +152,18 @@ int main(int argc, char** argv) {
     else
     {
         Screen screen("Hello World!", SCREEN_WIDTH, SCREEN_HEIGHT);
-        screen.setScale(2);
+        screen.setScale(3);
         if (screen.init())
         {
             SpriteSheet spriteSheet(screen.getRenderer(), ASSETS_PATH"card_spritesheet.png", 32, 48);
 
-            Card card(&spriteSheet, Suit::Clubs, 12, { 20, 20 });
+//            Card card(&spriteSheet, Suit::Clubs, 12, { 20, 20 });
+
+            std::vector<Card> cards{};
+            cards.reserve(10);
+            for (int i = 0; i < 10; ++i) {
+                cards.emplace_back(&spriteSheet, Suit::Spades, i + 2, vec2 { 20, 20 + (i * 13) });
+            }
 
             bool quit = false;
             SDL_Event e;
@@ -170,12 +188,32 @@ int main(int argc, char** argv) {
                             screen.scaleDown();
                         }
                     }
+
+                    if(e.type == SDL_MOUSEBUTTONDOWN)
+                    {
+                        auto x = e.button.x;
+                        auto y = e.button.y;
+                        std::cout << "X: " << x << "\nY: " << y << std::endl;
+                        for(auto card_i = cards.rbegin(); card_i != cards.rend(); ++card_i)
+                        {
+                            vec2 pos{ card_i->getPosition() };
+                            vec2 size{ card_i->getSize() };
+                            if (x > pos.x && x < pos.x + size.x && y > pos.y && y < pos.y + size.y)
+                            {
+                                std::cout << "Rank: " << card_i->getRank() << "\n" << std::endl;
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 SDL_SetRenderDrawColor(screen.getRenderer(), 22, 128, 17, 0xFF);
                 SDL_RenderClear(screen.getRenderer());
 
-                card.render();
+                for(auto card_i = cards.begin(); card_i != cards.end(); ++card_i)
+                {
+                    card_i->render();
+                }
 
                 SDL_RenderPresent(screen.getRenderer());
             }
