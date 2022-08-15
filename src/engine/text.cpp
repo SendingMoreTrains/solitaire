@@ -1,8 +1,15 @@
+struct RenderedText
+{
+    SDL_Rect area;
+    SDL_Texture* texture;
+};
+
 class OutlineFont
 {
 public:
-    OutlineFont(const char* font_path, int font_size, int outline_width)
-        : base_font{}
+    OutlineFont(RenderContext* render_context, const char* font_path, int font_size, int outline_width)
+        : render_context{ render_context }
+        , base_font{}
         , outline_font{}
         , outline_width{ outline_width }
     {
@@ -12,7 +19,7 @@ public:
         TTF_SetFontOutline(outline_font, outline_width);
     }
 
-    SDL_Surface* render_outlined_text(const char* text)
+    SDL_Surface* draw_outlined_text(const char* text)
     {
         SDL_Surface* bg_surface = TTF_RenderText_Solid(outline_font, text, black);
         SDL_Surface* fg_surface = TTF_RenderText_Solid(base_font, text, white);
@@ -31,7 +38,20 @@ public:
         return test;
     }
 
+    RenderedText render_outlined_text(const char* text)
+    {
+        SDL_Surface* surface{ draw_outlined_text(text) };
+
+        rect area{ 0, 0, surface->w, surface->h };
+        SDL_Texture* texture = render_context->create_texture(surface);
+
+        SDL_FreeSurface(surface);
+
+        return RenderedText {area, texture};
+    }
+
 private:
+    RenderContext* render_context;
     TTF_Font* base_font;
     TTF_Font* outline_font;
     int outline_width;
@@ -45,6 +65,3 @@ struct OutlineTextTexture
     SDL_Texture* texture;
     SDL_Rect dimensions;
 };
-
-struct TextGenerator
-{};

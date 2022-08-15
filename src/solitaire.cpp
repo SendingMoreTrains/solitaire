@@ -18,18 +18,19 @@ class Solitaire
     bool game_won;
 
 public:
-    Solitaire(RenderContext* render_context)
+    Solitaire(RenderContext* render_context, BaseGame* game)
         : sprite_sheet(render_context->loadTexture("res/card_spritesheet.png"), 32, 48)
         , card_sprites(&sprite_sheet)
         , state()
+        , game(game)
         , game_won{ false }
-    {
-        // game = new Playground();
-        game = new FreeCell();
+    {}
+    ~Solitaire() { delete game; }
 
+    void start_game()
+    {
         game->initialize_board(&card_sprites, &state);
     }
-    ~Solitaire() { delete game; }
 
     void reset()
     {

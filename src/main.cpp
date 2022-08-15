@@ -64,12 +64,6 @@ SDL_Surface* CreateSDL_RGBA_Surface(int width, int height)
 
 #include "solitaire.cpp"
 
-struct RenderedText
-{
-    SDL_Rect area;
-    SDL_Texture* texture;
-};
-
 RenderedText current_text{};
 
 
@@ -86,7 +80,11 @@ int main(int argc, char** argv) {
             {
                 InputState inputState{};
 
-                Solitaire solitaire(&renderContext);
+                Solitaire solitaire(&renderContext, new FreeCell());
+
+                // scenemanager manager(&renderContext);
+                // manager.set_scene(new GameScene(&manager, new FreeCell));
+
 
 #if BENCHMARK
                 Uint32 target_tick = SDL_GetTicks() + 1000;
@@ -96,17 +94,9 @@ int main(int argc, char** argv) {
                 bool quit = false;
                 SDL_Event e;
 
-                OutlineFont chosen_font{ "res/Arcadepix Plus.ttf", 16, 1 };
-                {
-                    SDL_Surface* text_surface{ chosen_font.render_outlined_text("Testing 1 2 3, FreeCell") };
+                OutlineFont chosen_font{ &renderContext, "res/Arcadepix Plus.ttf", 16, 1 };
 
-                    rect area{ 0, 0, text_surface->w, text_surface->h };
-                    SDL_Texture* texture = renderContext.create_texture(text_surface);
-
-                    current_text = RenderedText {area, texture};
-
-                    SDL_FreeSurface(text_surface);
-                }
+                current_text = chosen_font.render_outlined_text("Testing 1 2 3, FreeCell");
 
 
                 // OVERLAY TEST - REMOVE THIS
@@ -120,6 +110,8 @@ int main(int argc, char** argv) {
                     overlay = renderContext.create_texture(overlay_s);
                     SDL_FreeSurface(overlay_s);
                 }
+
+                solitaire.start_game();
 
                 // GAME LOOP
                 while (!quit)
@@ -145,7 +137,7 @@ int main(int argc, char** argv) {
                         processSdlEvent(&inputState, &e);
                     }
 
-                    if (inputState.keys.get_state(SDLK_r).is_down)
+                    if (inputState.keys.get_state(SDLK_r).was_pressed)
                     {
                         solitaire.reset();
                     }
