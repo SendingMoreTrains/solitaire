@@ -3,6 +3,7 @@
 #include <array>
 #include <random>
 #include <chrono>
+#include <cmath>
 
 enum Suit
 {

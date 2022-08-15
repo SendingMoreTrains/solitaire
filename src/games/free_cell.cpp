@@ -68,15 +68,42 @@ struct FreeCell : Game
         }
     }
 
+    int get_max_drag_amount(GameState* state, bool dropping_on_open_cascade = false)
+    {
+        int open_cells{ 0 };
+        int open_cascades{ 0 };
+
+        for (auto const& pile : state->tableau.get_piles_of_type(Cell))
+        {
+            if (pile->cards.size() == 0)
+                ++open_cells;
+        }
+
+        for (auto const& pile : state->tableau.get_piles_of_type(Cascade))
+        {
+            if (pile->cards.size() == 0)
+                ++open_cascades;
+        }
+
+        if (dropping_on_open_cascade) { --open_cascades; }
+
+        return (1 + open_cells) * (pow(2, open_cascades));
+    }
+
     virtual bool allow_drag(GameState* state)
     {
-        // TODO: Implement more appropriate function
-        return state->drag.cards.size() > 1 ? false : true;
+        return state->drag.cards.size() <= get_max_drag_amount(state);
+    }
+
+    virtual bool allow_drop(GameState* state, Pile* target_pile)
+    {
+        bool is_pile_empty{ target_pile->cards.size() == 0 };
+        return state->drag.cards.size() <= get_max_drag_amount(state, is_pile_empty);
     }
 
     virtual bool is_game_won(GameState* state)
     {
-        for (auto pile : state->tableau.get_piles_of_type(Foundation))
+        for (auto const& pile : state->tableau.get_piles_of_type(Foundation))
         {
             if (pile->cards.size() < 13)
             {
