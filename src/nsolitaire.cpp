@@ -34,6 +34,12 @@ struct Card
                 && pos.y > area.y
                 && pos.y < area.y + area.h);
     }
+
+    CardColor get_color()
+    {
+        if (suit == Spades || suit == Clubs) { return Black; }
+        return Red;
+    }
 };
 
 
@@ -92,8 +98,14 @@ struct Deck
 struct DragState
 {
     bool active;
-    Card* grabbed_card;
+    std::vector<Card> cards;
     vec2 mouse_offset;
+
+    void end_drag()
+    {
+        active = false;
+        cards.clear();
+    }
 };
 
 
@@ -109,9 +121,10 @@ struct TableauItem
         , cards{}
     {}
 
-    virtual void handle_click() {}; // mouse down & up on same element
-    virtual void handle_drag_start() {}; // mouse goes down and starts to move
-    virtual void handle_drop(DragState* drag_state) {}; // mouse released from drag
+    virtual void handle_click() {} // mouse down & up on same element
+    virtual void handle_drag_start() {} // mouse goes down and starts to move
+
+    virtual bool can_accept_card(Card* incoming_card) = 0;
 
     virtual void render(RenderContext* rc)
     {
@@ -152,17 +165,59 @@ struct TableauItem
 
         return nullptr;
     }
+
+    void take_cards(std::vector<Card>* incoming_cards)
+    {
+        std::move(incoming_cards->begin(), incoming_cards->end(), std::back_inserter(cards));
+        incoming_cards->erase(incoming_cards->begin(), incoming_cards->end());
+    }
 };
 
 
 using PileRenderFunction = void(*)(RenderContext* rc, std::vector<Card>* cards);
-
-template <PileRenderFunction RenderFunction>
-struct Pile
+namespace PileRenderFunctions
 {
-    virtual void handle_click() {}; // mouse down & up on same element
-    virtual void handle_drag_start() {}; // mouse goes down and starts to move
-    virtual void handle_drop(DragState* drag_state) {}; // mouse released from drag
+    void RenderOffsetStack(RenderContext* rc, std::vector<Card>* cards)
+    {
+
+    }
+
+    void RenderFan(RenderContext* rc, std::vector<Card>* cards)
+    {
+
+    }
+}
+
+using PileAcceptFunction = bool(*)(std::vector<Card>* cards, Card* incoming_card);
+namespace PileAcceptFunctions
+{
+    bool AlternateColorsDescendingRank(std::vector<Card>* cards, Card* incoming_card)
+    {
+        return
+            cards->back().get_color() != incoming_card->get_color() // alternates color
+            && ((cards->back().rank - incoming_card->rank) == 1);    // rank is one higher
+    }
+}
+
+template <PileRenderFunction RenderFunction, PileAcceptFunction AcceptFunction>
+struct Pile : TableauItem
+{
+    // mouse down & up on same element
+    virtual void handle_click()
+    {
+
+    };
+
+    // mouse goes down and starts to move
+    virtual void handle_drag_start()
+    {
+
+    };
+
+    virtual bool can_accept_card(Card* incoming_card)
+    {
+        return AcceptFunction(&cards, incoming_card);
+    }
 
     virtual void render(RenderContext* rc)
     {
@@ -212,6 +267,8 @@ struct Playground : Game
         state->deck.add_deck();
         state->deck.shuffle();
         std::cout << "Size: " << state->deck.cards.size() << std::endl;
+
+
     }
 
     virtual void is_game_over()
