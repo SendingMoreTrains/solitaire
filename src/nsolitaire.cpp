@@ -1,6 +1,8 @@
 #include <map>
 #include <utility>
 #include <array>
+#include <random>
+#include <chrono>
 
 enum Suit
 {
@@ -106,6 +108,10 @@ struct Deck
     void shuffle()
     {
         // TODO: Shuffle cards here
+        auto seed = std::chrono::system_clock::now().time_since_epoch().count();
+        // std::random_device rd{  };
+        std::mt19937 rng {seed};
+        std::shuffle(cards.begin(), cards.end(), rng);
     }
 
     Card deal_card()
@@ -442,11 +448,8 @@ struct Playground : Game
 
     virtual void initialize_board(SpriteSheet* sprite_sheet, Deck* deck, GameState* state)
     {
-        // state->deck.add_deck();
-        // state->deck.shuffle();
-        // std::cout << "Size: " << state->deck.cards.size() << std::endl;
-
         deck->add_deck();
+        deck->shuffle();
 
         Pile* pile = new Pile(
             PilePositioningFunctions::OffsetCascade,
@@ -501,8 +504,6 @@ public:
     // TODO: State machine in here?
     void update(InputState* input_state)
     {
-        // std::vector<Pile*>* piles = &state.tableau.all_piles;
-
         if (state.drag_state.active)
         {
             state.drag_state.update(input_state->mouse.pos);
