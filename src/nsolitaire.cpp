@@ -1,3 +1,5 @@
+#include <map>
+#include <utility>
 
 enum Suit
 {
@@ -199,6 +201,8 @@ namespace PileAcceptFunctions
     }
 }
 
+
+
 template <PileRenderFunction RenderFunction, PileAcceptFunction AcceptFunction>
 struct Pile : TableauItem
 {
@@ -250,8 +254,54 @@ struct GameState
     {}
 };
 
+
+struct NewPile
+{
+    PileRenderFunction prf;
+    PileAcceptFunction paf;
+
+    Sprite empty_sprite;
+
+    NewPile(PileRenderFunction prf, PileAcceptFunction paf, Sprite empty_sprite)
+        : prf{ prf }
+        , paf{ paf }
+        , empty_sprite{ empty_sprite }
+    {}
+};
+
+
+struct TableauState
+{
+    std::map<int, std::vector<NewPile>> pile_map;
+
+    std::vector<NewPile>* get_piles_of_type(int pile_type)
+    {
+        return &pile_map[pile_type];
+    }
+
+    // NOTE: this takes ownership of the incoming pile
+    void add_pile(int pile_type, NewPile* incoming_pile)
+    {
+        if (pile_map.count(pile_type) == 0)
+        {
+            pile_map.emplace(std::make_pair(pile_type, std::vector<NewPile>()));
+        }
+
+        pile_map[pile_type].push_back(std::move(*incoming_pile));
+    }
+};
+
+
 struct Game
 {
+    enum PileTypes
+    {
+        Cascade = 0,
+        Foundation = 1
+    };
+
+    virtual ~Game() {};
+
     // Create deck
     // Create and add tableau_items in their location
     // Deal cards from deck to Tableau
@@ -262,6 +312,11 @@ struct Game
 
 struct Playground : Game
 {
+    enum PileTypes
+    {
+        Cascade = 0
+    };
+
     virtual void initialize_board(GameState* state)
     {
         state->deck.add_deck();
@@ -282,6 +337,7 @@ class Solitaire
     SpriteSheet sprite_sheet;
     // Board board;
     GameState state;
+    Game* game;
 
 public:
     Solitaire(RenderContext* render_context)
@@ -290,6 +346,11 @@ public:
     {
         Playground pg{};
         pg.initialize_board(&state);
+    }
+
+    ~Solitaire()
+    {
+        delete game;
     }
 
     void update(InputState* input_state)
