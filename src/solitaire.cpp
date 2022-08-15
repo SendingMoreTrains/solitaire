@@ -118,6 +118,24 @@ Card* scanForClick(Pile* pile, int x, int y)
     return nullptr;
 }
 
+struct DragState
+{
+    bool active;
+    Pile pile;
+    vec2 offset;
+
+    void start_drag(std::vector<Card> cards)
+    {
+
+    }
+
+    void end_drag()
+    {
+        active = false;
+        pile.cards.clear();
+    }
+};
+
 class Solitaire
 {
     std::vector<Card> cards;
@@ -126,17 +144,14 @@ class Solitaire
     Pile pileOne;
     Pile pileTwo;
 
-    bool dragging;
-    Pile dragPile;
-    vec2 dragOffset;
+    DragState dragState;
 
 public:
     Solitaire(RenderContext* renderContext)
         : spriteSheet(renderContext->loadTexture("res/card_spritesheet.png"), 32, 48)
         , pileOne(spriteSheet.createSprite(0, 15))
         , pileTwo(spriteSheet.createSprite(0, 15))
-        , dragging{ false }
-        , dragOffset{}
+        , dragState{}
     {
         pileOne.cards.reserve(10);
         pileOne.setPosition(20, 20);
@@ -164,32 +179,32 @@ public:
             if (clicked_card)
             {
                 vec2 clicked_card_pos{ clicked_card->getPosition() };
-                dragPile.addCards(pileOne.takeFromCard(clicked_card));
-                dragOffset = vec2{ mouse_x - clicked_card_pos.x, mouse_y - clicked_card_pos.y };
-                dragging = true;
+                dragState.pile.addCards(pileOne.takeFromCard(clicked_card));
+                dragState.offset = vec2{ mouse_x - clicked_card_pos.x, mouse_y - clicked_card_pos.y };
+                dragState.active = true;
             }
 
             clicked_card = scanForClick(&pileTwo, mouse_x, mouse_y);
             if (clicked_card)
             {
                 vec2 clicked_card_pos{ clicked_card->getPosition() };
-                dragPile.addCards(pileTwo.takeFromCard(clicked_card));
-                dragOffset = vec2{ mouse_x - clicked_card_pos.x, mouse_y - clicked_card_pos.y };
-                dragging = true;
+                dragState.pile.addCards(pileTwo.takeFromCard(clicked_card));
+                dragState.offset = vec2{ mouse_x - clicked_card_pos.x, mouse_y - clicked_card_pos.y };
+                dragState.active = true;
             }
         }
 
-        if (dragging)
+        if (dragState.active)
         {
-            dragPile.setPosition(mouse_x - dragOffset.x, mouse_y - dragOffset.y);
+            dragState.pile.setPosition(mouse_x - dragState.offset.x, mouse_y - dragState.offset.y);
         }
 
         if (inputState->mouse.left.was_released)
         {
-            dragging = false;
-            if (dragPile.cards.size() > 0)
+            dragState.active = false;
+            if (dragState.pile.cards.size() > 0)
             {
-                dragPile.cards.clear();
+                dragState.pile.cards.clear();
             }
         }
     }
@@ -202,9 +217,9 @@ public:
         pileOne.render(renderContext);
         pileTwo.render(renderContext);
 
-        if (dragging)
+        if (dragState.active)
         {
-            dragPile.render(renderContext);
+            dragState.pile.render(renderContext);
         }
 
         renderContext->present();
