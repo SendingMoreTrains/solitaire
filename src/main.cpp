@@ -171,6 +171,14 @@ void Card::setPosition(int x, int y) {
     area.y = y;
 }
 
+struct ButtonState {
+    bool isDown, wasPressed, wasReleased;
+};
+
+struct MouseState {
+    int x, y;
+    ButtonState left, right;
+};
 
 int main(int argc, char** argv) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -178,20 +186,28 @@ int main(int argc, char** argv) {
     } else {
         RenderContext renderContext("Solitaire", SCREEN_WIDTH, SCREEN_HEIGHT, 3);
         if (renderContext.init()) {
-            SpriteSheet spriteSheet(renderContext.loadTexture(ASSETS_PATH"card_spritesheet.png"), 32, 48);
+            SpriteSheet spriteSheet(renderContext.loadTexture("res/card_spritesheet.png"), 32, 48);
 
 
             std::vector<Card> cards{};
             cards.reserve(10);
             for (int i = 0; i < 10; ++i) {
-                cards.emplace_back(&spriteSheet, Suit::Spades, i + 2);
+                cards.emplace_back(&spriteSheet, static_cast<Suit>(i % 4), i + 2);
                 cards.back().setPosition(20, 20 + (i * 13));
             }
+
+            MouseState inputState;
 
             bool quit = false;
             SDL_Event e;
 
             while (!quit) {
+                inputState.left.wasReleased = false;
+                inputState.left.wasPressed = false;
+                inputState.right.wasReleased = false;
+                inputState.right.wasPressed = false;
+
+
                 while (SDL_PollEvent(&e) != 0) {
                     if (e.type == SDL_QUIT) {
                         quit = true;
@@ -206,16 +222,53 @@ int main(int argc, char** argv) {
 //                        }
 //                    }
 
-                    if (e.type == SDL_MOUSEBUTTONUP) {
-                        auto x = e.button.x;
-                        auto y = e.button.y;
-                        std::cout << "X: " << x << "\nY: " << y << std::endl;
-                        for (auto card_i = cards.rbegin(); card_i != cards.rend(); ++card_i) {
-                            rect c_area{card_i->getArea()};
-                            if (x > c_area.x && x < c_area.x + c_area.w && y > c_area.y && y < c_area.y + c_area.h) {
-                                std::cout << "Rank: " << card_i->getRank() << "\n" << std::endl;
-                                break;
-                            }
+                    switch (e.type) {
+                    case SDL_MOUSEMOTION:
+                        inputState.x = e.motion.x;
+                        inputState.y = e.motion.y;
+                        break;
+
+                    case SDL_MOUSEBUTTONUP:
+                        inputState.x = e.button.x;
+                        inputState.y = e.button.y;
+
+                        if (e.button.button == SDL_BUTTON_LEFT) {
+                            inputState.left.wasReleased = true;
+                            inputState.left.isDown = false;
+                        }
+
+                        if (e.button.button == SDL_BUTTON_RIGHT) {
+                            inputState.right.wasReleased = true;
+                            inputState.right.isDown = false;
+                        }
+                        break;
+
+                    case SDL_MOUSEBUTTONDOWN:
+                        inputState.x = e.button.x;
+                        inputState.y = e.button.y;
+
+                        if (e.button.button == SDL_BUTTON_LEFT) {
+                            inputState.left.wasPressed = true;
+                            inputState.left.isDown = true;
+                        }
+
+                        if (e.button.button == SDL_BUTTON_RIGHT) {
+                            inputState.right.wasPressed = true;
+                            inputState.right.isDown = true;;
+                        }
+                        break;
+                    }
+                }
+
+                if (inputState.left.wasReleased) {
+                    auto x = inputState.x;
+                    auto y = inputState.y;
+                    std::cout << "X: " << x << "\nY: " << y << std::endl;
+                    for (auto card_i = cards.rbegin(); card_i != cards.rend(); ++card_i) {
+                        rect c_area{card_i->getArea()};
+                        if (x > c_area.x && x < c_area.x + c_area.w && y > c_area.y && y < c_area.y + c_area.h) {
+                            std::cout << "Rank: " << card_i->rank << ", Suit: " << card_i->suit << "\n" << std::endl;
+                            break;
                         }
                     }
                 }
