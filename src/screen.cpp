@@ -2,7 +2,7 @@
 #include "screen.h"
 
 Screen::Screen(const char *title, int game_width, int game_height)
-        : _title{title}, _window_scale{3}, _game_width{game_width}, _game_height{game_height}, _window{nullptr},
+        : _title{title}, _window_scale{ 1 }, _game_width{game_width}, _game_height{game_height}, _window{nullptr},
           _renderer{nullptr} {
 }
 
