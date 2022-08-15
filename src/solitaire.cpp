@@ -73,6 +73,12 @@ public:
         state.drag.end_drag();
     }
 
+    // Useful for ending drag from scene
+    void end_drag()
+    {
+        state.drag.end_drag();
+    }
+
     void update(InputState* input_state)
     {
         if (game_won)

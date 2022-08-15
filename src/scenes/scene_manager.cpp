@@ -23,4 +23,4 @@ public:
     BaseScene* get_scene() { return active_scene; }
 
     RenderContext* get_render_context() { return render_context; }
-}
+};

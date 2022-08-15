@@ -105,7 +105,7 @@ public:
     }
 
 
-    RenderedText render_text(const char* text, OutlineFont font)
+    RenderedText create_text_with_font(const char* text, OutlineFont font)
     {
         SDL_Surface* surface{ font.draw_outlined_text(text) };
 
@@ -117,14 +117,14 @@ public:
         return RenderedText {area, texture};
     }
 
-    RenderedText render_text(const char* text)
+    RenderedText create_rendered_text(const char* text)
     {
-        return render_text(text, standard_font);
+        return create_text_with_font(text, standard_font);
     }
 
-    RenderedText render_header_text(const char* text)
+    RenderedText create_rendered_header_text(const char* text)
     {
-        return render_text(text, header_font);
+        return create_text_with_font(text, header_font);
     }
 
     void render_text(RenderedText text, vec2 pos)

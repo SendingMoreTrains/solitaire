@@ -44,6 +44,8 @@ struct vec2 {
 
 #include "solitaire.cpp"
 
+#include "scenes/scene.h"
+
 RenderedText current_text{};
 
 
@@ -62,8 +64,8 @@ int main(int argc, char** argv) {
 
                 Solitaire solitaire(&renderContext, new FreeCell());
 
-                // scenemanager manager(&renderContext);
-                // manager.set_scene(new GameScene(&manager, new FreeCell));
+                SceneManager manager(&renderContext);
+                manager.set_scene(new GameScene(&manager, new FreeCell()));
 
 
 #if BENCHMARK
@@ -77,7 +79,7 @@ int main(int argc, char** argv) {
                 // OutlineFont chosen_font{ &renderContext, "res/Arcadepix Plus.ttf", 16, 1 };
                 // current_text = chosen_font.render_outlined_text("Testing 1 2 3, FreeCell");
 
-                current_text = renderContext.render_text("Testing 1 2 3, FreeCell");
+                current_text = renderContext.create_rendered_text("Testing 1 2 3, FreeCell");
                 SDL_Texture* overlay = renderContext.create_overlay();
 
 
@@ -112,12 +114,15 @@ int main(int argc, char** argv) {
                         solitaire.reset();
                     }
 
-                    solitaire.update(&inputState);
+                    // solitaire.update(&inputState);
 
-                    solitaire.render(&renderContext);
+                    // solitaire.render(&renderContext);
 
-                    renderContext.render_full_screen(overlay);
-                    renderContext.render_text(current_text, vec2 {20, 100});
+                    // renderContext.render_full_screen(overlay);
+                    // renderContext.render_text(current_text, vec2 {20, 100});
+
+                    manager.update(&inputState);
+                    manager.render();
 
                     renderContext.present();
 

@@ -43,4 +43,9 @@ struct RenderedText
 {
     SDL_Rect area;
     SDL_Texture* texture;
+
+    void free()
+    {
+        SDL_DestroyTexture(texture);
+    }
 };

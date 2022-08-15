@@ -1,12 +1,12 @@
-class GameScene : BaseScene
+class GameScene : public BaseScene
 {
 private:
     SceneManager* manager;
-    Solitiare solitaire;
+    Solitaire solitaire;
 
 public:
     // void* here is the game to initialize
-    virtual void GameScene(SceneManager* manager, BaseGame* game)
+    GameScene(SceneManager* manager, BaseGame* game)
         : manager(manager)
         , solitaire(manager->get_render_context(), game)
     {
@@ -15,6 +15,14 @@ public:
 
     virtual void update(InputState* input_state)
     {
+        if (input_state->keys.get_state(SDLK_ESCAPE).was_pressed)
+        {
+            solitaire.end_drag();
+            auto pause_scene = new PauseScene(manager, this);
+            manager->set_scene(pause_scene);
+            return;
+        }
+
         solitaire.update(input_state);
     }
 
@@ -22,4 +30,4 @@ public:
     {
         solitaire.render(rc);
     }
-}
+};
