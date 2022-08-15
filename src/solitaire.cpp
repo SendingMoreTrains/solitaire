@@ -1,15 +1,25 @@
 #include "cards/cards.h"
 
+bool withinBounds(rect* r, vec2 pos)
+{
+    return (
+        pos.x > r->x
+        && pos.x < r->x + r->w
+        && pos.y > r->y
+        && pos.y < r->y + r->h);
+}
+
 struct Pile
 {
     std::vector<Card> cards;
     Sprite sprite;
     rect area;
 
-    Pile(SpriteSheet* src_sheet)
-        : sprite{ src_sheet->createSprite(0, 15) }
+    Pile()
+        : sprite{  }
         , area{ 0, 0, sprite.src_rect.w, sprite.src_rect.h }
     {}
+
 
     Pile(Sprite sprite)
         : sprite{ sprite }
@@ -53,29 +63,30 @@ struct Pile
         updateCardsPosition();
     }
 
-    vec2 getPosition() { return vec2{ area.x, area.y }; }
+    vec2 getPosition()
+    {
+        return vec2{ area.x, area.y };
+    }
 
-    void takeFromCard(Card* card)
+    std::vector<Card> takeFromCard(Card* card)
     {
         auto index = cards.begin() + std::distance(&cards[0], card);
-        vec2 start_pos{ this->getPosition() };
 
-        // Pile new_pile(sprite);
-        // new_pile.setPosition(start_pos);
+        std::vector<Card> new_cards{};
+        new_cards.reserve(std::distance(index, cards.end()) + 6);
+
         while (index != cards.end())
         {
-            // new_pile.addCard(*index);
-            // index = cards.erase(index);
-            std::cout << "Rank: " << index->rank << ", Suit: " << index->suit << "\n";
-            ++index;
+            new_cards.push_back(*index);
+            index = cards.erase(index);
         }
 
-        // return new_pile;
+        return new_cards;
     }
 
     void render(RenderContext* rc)
     {
-        if (cards.empty())
+        if (cards.empty() && sprite.texture != nullptr)
         {
             rc->renderSprite(sprite, &area);
         }
@@ -92,8 +103,8 @@ struct Pile
 Card* scanForClick(Pile* pile, int x, int y)
 {
     for (auto card_i = pile->cards.rbegin(); card_i != pile->cards.rend(); ++card_i) {
-        rect c_area{card_i->area};
-        if (x > c_area.x && x < c_area.x + c_area.w && y > c_area.y && y < c_area.y + c_area.h) {
+        if (withinBounds(&card_i->area, vec2{ x, y }))
+        {
             return &*card_i;
         }
     }
@@ -112,8 +123,8 @@ class Solitaire
 public:
     Solitaire(RenderContext* renderContext)
         : spriteSheet(renderContext->loadTexture("res/card_spritesheet.png"), 32, 48)
-        , pileOne(&spriteSheet)
-        , pileTwo(&spriteSheet)
+        , pileOne(spriteSheet.createSprite(0, 15))
+        , pileTwo(spriteSheet.createSprite(0, 15))
     {
         pileOne.cards.reserve(10);
         pileOne.setPosition(20, 20);
@@ -149,14 +160,6 @@ public:
                     pileTwo.takeFromCard(clicked);
                 }
             }
-
-
-            // std::cout << "X: " << x << "\nY: " << y << std::endl;
-            // if (clicked != nullptr)
-            // {
-            //     std::cout << "Rank: " << clicked->rank << ", Suit: " << clicked->suit << "\n";
-            // }
-            std::cout << std::endl;
         }
     }
 
