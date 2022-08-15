@@ -16,7 +16,7 @@ namespace PilePositioningFunctions
     {
         if (cards.empty()) { return; }
 
-        for (auto card : cards)
+        for (auto& card : cards)
         {
             card.set_position(pile_pos);
         }
@@ -52,6 +52,12 @@ namespace PileOrderingFunctions
     bool AlternateColor(Card* top_card, Card* bottom_card)
     {
         return top_card->get_color() != bottom_card->get_color();
+    }
+
+    bool AlternateColorDecrementRank(Card* top_card, Card* bottom_card)
+    {
+        return (top_card->get_color() != bottom_card->get_color()
+                && (top_card->rank - bottom_card->rank) == 1);
     }
 
     bool IncrementingSameSuit(Card* top_card, Card* bottom_card)

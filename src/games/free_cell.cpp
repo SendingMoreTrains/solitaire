@@ -41,11 +41,18 @@ struct FreeCell : Game
         builder.reset();
 
         // Initialize Cascades
+        builder
+            .set_accept_function(PileAcceptFunctions::FollowOrdering)
+            .set_empty_accept_function(PileEmptyAcceptFunctions::Any)
+            .set_ordering_function(PileOrderingFunctions::AlternateColorDecrementRank)
+            .set_positioning_function(PilePositioningFunctions::OffsetCascade)
+            .set_empty_sprite(card_sprites->get_empty_sprite());
         for (int i = 0; i < 8; ++i)
         {
-
+            builder.set_pile_pos(vec2 { 10 + (i * 40), (8 + 48 + 10) });
+            state->tableau.add_pile(Cascade, builder.build());
         }
-        return;
+        builder.reset();
 
         // Deal cards
         Deck deck{ card_sprites };
@@ -53,11 +60,18 @@ struct FreeCell : Game
         deck.shuffle();
 
         auto cascades{ state->tableau.get_piles_of_type(Cascade) };
+        int target_pile{ 0 };
         while (!deck.is_empty())
         {
-
-            deck.deal_card();
+            cascades[(target_pile % 8)]->add_card(deck.deal_card());
+            ++target_pile;
         }
+    }
+
+    virtual bool allow_drag(GameState* state)
+    {
+        // TODO: Implement more appropriate function
+        return state->drag.cards.size() > 1 ? false : true;
     }
 
     virtual bool is_game_won(GameState* state)
