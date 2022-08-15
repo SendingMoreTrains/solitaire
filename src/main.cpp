@@ -40,26 +40,6 @@ struct vec2 {
     }
 };
 
-SDL_Surface* CreateSDL_RGBA_Surface(int width, int height)
-{
-    Uint32 rmask, gmask, bmask, amask;
-    /* SDL interprets each pixel as a 32-bit number, so our masks must depend
-       on the endianness (byte order) of the machine */
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-    rmask = 0xff000000;
-    gmask = 0x00ff0000;
-    bmask = 0x0000ff00;
-    amask = 0x000000ff;
-#else
-    rmask = 0x000000ff;
-    gmask = 0x0000ff00;
-    bmask = 0x00ff0000;
-    amask = 0xff000000;
-#endif
-
-    return SDL_CreateRGBSurface(0,width,height,32,rmask, gmask, bmask, amask);
-}
-
 #include "engine/engine.h"
 
 #include "solitaire.cpp"
@@ -94,22 +74,12 @@ int main(int argc, char** argv) {
                 bool quit = false;
                 SDL_Event e;
 
-                OutlineFont chosen_font{ &renderContext, "res/Arcadepix Plus.ttf", 16, 1 };
+                // OutlineFont chosen_font{ &renderContext, "res/Arcadepix Plus.ttf", 16, 1 };
+                // current_text = chosen_font.render_outlined_text("Testing 1 2 3, FreeCell");
 
-                current_text = chosen_font.render_outlined_text("Testing 1 2 3, FreeCell");
+                current_text = renderContext.render_text("Testing 1 2 3, FreeCell");
+                SDL_Texture* overlay = renderContext.create_overlay();
 
-
-                // OVERLAY TEST - REMOVE THIS
-                SDL_Texture* overlay;
-                {
-                    // Create a surface that will be the returned result
-                    SDL_Surface* overlay_s = CreateSDL_RGBA_Surface(SCREEN_HEIGHT,SCREEN_WIDTH);
-
-                    SDL_FillRect(overlay_s, NULL, SDL_MapRGBA(overlay_s->format, 0, 0, 0, 160));
-
-                    overlay = renderContext.create_texture(overlay_s);
-                    SDL_FreeSurface(overlay_s);
-                }
 
                 solitaire.start_game();
 
@@ -146,13 +116,8 @@ int main(int argc, char** argv) {
 
                     solitaire.render(&renderContext);
 
-                    SDL_RenderCopy(renderContext._renderer, overlay, NULL, NULL);
-
-                    // Font Test
-                    {
-                        rect dst_rect{ 20, 100, current_text.area.w, current_text.area.h };
-                        SDL_RenderCopy(renderContext._renderer, current_text.texture, NULL, &dst_rect);
-                    }
+                    renderContext.render_full_screen(overlay);
+                    renderContext.render_text(current_text, vec2 {20, 100});
 
                     renderContext.present();
 
@@ -172,7 +137,7 @@ int main(int argc, char** argv) {
 
     }
 
-    TTF_Init();
+    TTF_Quit();
     SDL_Quit();
 
     return 0;
