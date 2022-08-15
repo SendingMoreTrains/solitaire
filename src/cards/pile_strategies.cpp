@@ -28,6 +28,11 @@ namespace PileEmptyAcceptFunctions
 {
     bool Any(std::vector<Card>*) { return true; }
 
+    bool AnySingle(std::vector<Card>* incoming_cards)
+    {
+        return incoming_cards->size() == 1;
+    }
+
     bool Aces(std::vector<Card>* incoming_cards)
     {
         return incoming_cards->front().rank == 1;
@@ -66,15 +71,27 @@ namespace PileAcceptFunctions
         return incoming_cards->size() == 1;
     }
 
-    bool FollowOrdering(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction pof)
-    {
-        return pof(&cards->back(), &incoming_cards->front());
-    }
-
     bool AlternateColorsDescendingRank(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction)
     {
         return
             cards->back().get_color() != incoming_cards->front().get_color() // alternates color
             && ((cards->back().rank - incoming_cards->front().rank) == 1);    // rank is one higher
+    }
+
+    bool FollowOrdering(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction pof)
+    {
+        return pof(&cards->back(), &incoming_cards->front());
+    }
+
+    bool FollowOrderingSingle(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction pof)
+    {
+        if (incoming_cards->size() > 1) { return false; }
+
+        return FollowOrdering(cards, incoming_cards, pof);
+    }
+
+    bool None(std::vector<Card>*, std::vector<Card>*, PileOrderingFunction)
+    {
+        return false;
     }
 }

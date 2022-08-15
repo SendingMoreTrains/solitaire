@@ -208,13 +208,11 @@ struct Pile
     PileOrderingFunction ordering_function;
     PilePositioningFunction positioning_function;
 
-    bool accept_multiple;
-
     Sprite empty_sprite;
     rect area;
     std::vector<Card> cards;
 
-    Pile(PileAcceptFunction paf, PileEmptyAcceptFunction peaf, PileOrderingFunction pof, PilePositioningFunction ppf, Sprite empty_sprite, vec2 pos = { 0, 0 }, bool accept_multiple = true)
+    Pile(PileAcceptFunction paf, PileEmptyAcceptFunction peaf, PileOrderingFunction pof, PilePositioningFunction ppf, Sprite empty_sprite, vec2 pos = { 0, 0 })
         : accept_function{ paf }
         , empty_accept_function{ peaf }
         , ordering_function{ pof }
@@ -237,7 +235,6 @@ struct Pile
     }
 
     bool can_accept_cards(std::vector<Card>* incoming_cards) {
-        if (!accept_multiple && incoming_cards->size() > 1) { return false; }
         return cards.empty() ? empty_accept_function(incoming_cards) : accept_function(&cards, incoming_cards, ordering_function);
     }
 
@@ -351,7 +348,6 @@ private:
     PileOrderingFunction ordering_function;
     PilePositioningFunction positioning_function;
     Sprite empty_sprite;
-    bool accept_multiple;
     vec2 pile_pos;
 
 public:
@@ -362,7 +358,6 @@ public:
         ordering_function = PileOrderingFunctions::Any;
         positioning_function = PilePositioningFunctions::OffsetCascade;
         empty_sprite = Sprite();
-        accept_multiple = 0;
         pile_pos = vec2 { 0, 0 };
     }
 
@@ -373,7 +368,7 @@ public:
 
     Pile* build()
     {
-        return new Pile(accept_function, empty_accept_function, ordering_function, positioning_function, empty_sprite, pile_pos, accept_multiple);
+        return new Pile(accept_function, empty_accept_function, ordering_function, positioning_function, empty_sprite, pile_pos);
     }
 
     PileBuilder& set_accept_function(PileAcceptFunction paf)
@@ -381,6 +376,37 @@ public:
         accept_function = paf;
         return *this;
     }
+
+    PileBuilder& set_empty_accept_function(PileEmptyAcceptFunction peaf)
+    {
+        empty_accept_function = peaf;
+        return *this;
+    }
+
+    PileBuilder& set_ordering_function(PileOrderingFunction pof)
+    {
+        ordering_function = pof;
+        return *this;
+    }
+
+    PileBuilder& set_positioning_function(PilePositioningFunction ppf)
+    {
+        positioning_function = ppf;
+        return *this;
+    }
+
+    PileBuilder& set_empty_sprite(Sprite sprite)
+    {
+        empty_sprite = sprite;
+        return *this;
+    }
+
+    PileBuilder& set_pile_pos(vec2 pos)
+    {
+        pile_pos = pos;
+        return *this;
+    }
+
 };
 
 

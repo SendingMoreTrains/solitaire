@@ -10,6 +10,7 @@ using PileEmptyAcceptFunction = bool(*)(std::vector<Card>*);
 namespace PileEmptyAcceptFunctions
 {
     bool Any(std::vector<Card>*);
+    bool AnySingle(std::vector<Card>* incoming_cards);
     bool Aces(std::vector<Card>* incoming_cards);
     bool Kings(std::vector<Card>* incoming_cards);
 }
@@ -20,6 +21,7 @@ namespace PileOrderingFunctions
 {
     bool Any(Card*, Card*);
     bool AlternateColor(Card* top_card, Card* bottom_card);
+    bool AlternateColorDecrementRank(Card* top_card, Card* bottom_card);
     bool IncrementingSameSuit(Card* top_card, Card* bottom_card);
 }
 
@@ -31,6 +33,8 @@ namespace PileAcceptFunctions
     bool AnySingle(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction);
     bool AlternateColorsDescendingRank(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction);
     bool FollowOrdering(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction pof);
+    bool FollowOrderingSingle(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction pof);
+    bool None(std::vector<Card>*, std::vector<Card>*, PileOrderingFunction);
 }
 
 
