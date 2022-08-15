@@ -9,37 +9,37 @@
 const int SCREEN_WIDTH = 400;
 const int SCREEN_HEIGHT = 300;
 
-class Spritesheet
+class SpriteSheet
 {
 public:
-    Spritesheet(SDL_Renderer* renderer, const char* filepath, int sprite_width, int sprite_height);
-    ~Spritesheet();
+    SpriteSheet(SDL_Renderer* renderer, const char* filepath, int sprite_width, int sprite_height);
+    ~SpriteSheet();
 
-    SDL_Rect get_sprite_source(int spr_x, int spr_y);
-    SDL_Texture* get_texture();
+    SDL_Rect getSpriteSource(int spr_x, int spr_y);
+    SDL_Texture* getTexture();
 private:
     int _spr_width;
     int _spr_height;
     SDL_Texture* _sheet;
 };
 
-Spritesheet::Spritesheet(SDL_Renderer* renderer, const char* filepath, int sprite_width, int sprite_height)
+SpriteSheet::SpriteSheet(SDL_Renderer* renderer, const char* filepath, int sprite_width, int sprite_height)
         : _sheet{ IMG_LoadTexture(renderer, filepath) }
         , _spr_width{ sprite_width }
         , _spr_height{ sprite_height }
 {}
 
-Spritesheet::~Spritesheet()
+SpriteSheet::~SpriteSheet()
 {
     SDL_DestroyTexture(_sheet);
 }
 
-SDL_Rect Spritesheet::get_sprite_source(int spr_col, int spr_row)
+SDL_Rect SpriteSheet::getSpriteSource(int spr_col, int spr_row)
 {
-    return SDL_Rect{ spr_col * _spr_width, spr_row * _spr_height, _spr_width, _spr_height };
+    return SDL_Rect{spr_col * _spr_width, spr_row * _spr_height, _spr_width, _spr_height };
 }
 
-SDL_Texture* Spritesheet::get_texture()
+SDL_Texture* SpriteSheet::getTexture()
 {
     return _sheet;
 }
@@ -48,17 +48,17 @@ SDL_Texture* Spritesheet::get_texture()
 class Sprite
 {
 public:
-    Sprite(std::shared_ptr<Spritesheet> src_sheet, int sheet_col, int sheet_row);
+    Sprite(std::shared_ptr<SpriteSheet> src_sheet, int sheet_col, int sheet_row);
     void render(SDL_Renderer* renderer, int x, int y);
 private:
-    std::shared_ptr<Spritesheet> _sheet;
+    std::shared_ptr<SpriteSheet> _sheet;
     SDL_Rect _src_rect;
     SDL_Rect _dst_rect;
 };
 
-Sprite::Sprite(std::shared_ptr<Spritesheet> src_sheet, int sheet_col, int sheet_row)
+Sprite::Sprite(std::shared_ptr<SpriteSheet> src_sheet, int sheet_col, int sheet_row)
     : _sheet{std::move( src_sheet )}
-    , _src_rect{ _sheet->get_sprite_source(sheet_col, sheet_row) }
+    , _src_rect{_sheet->getSpriteSource(sheet_col, sheet_row) }
     , _dst_rect{ SDL_Rect{ 0, 0, _src_rect.w, _src_rect.h } }
 {}
 
@@ -66,7 +66,7 @@ void Sprite::render(SDL_Renderer* renderer, int x, int y)
 {
     _dst_rect.x = x;
     _dst_rect.y = y;
-    SDL_RenderCopy(renderer, _sheet->get_texture(), &_src_rect, &_dst_rect);
+    SDL_RenderCopy(renderer, _sheet->getTexture(), &_src_rect, &_dst_rect);
 }
 
 int main(int argc, char** argv) {
@@ -77,11 +77,13 @@ int main(int argc, char** argv) {
     else
     {
         Screen screen("Hello World!", SCREEN_WIDTH, SCREEN_HEIGHT);
-        screen.setScale(3);
+        screen.setScale(2);
         if (screen.init())
         {
             SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-            SDL_Texture* spritesheet = IMG_LoadTexture(screen.getRenderer(), ASSETS_PATH"card_spritesheet.png");
+
+            std::shared_ptr<SpriteSheet> spriteSheet = std::make_shared<SpriteSheet>(screen.getRenderer(), ASSETS_PATH"card_spritesheet.png", 32, 48);
+            Sprite sprite(spriteSheet, 0, 3);
 
             bool quit = false;
             SDL_Event e;
@@ -108,26 +110,13 @@ int main(int argc, char** argv) {
                     }
                 }
 
-                SDL_SetRenderDrawColor(screen.getRenderer(), 0x00, 0x00, 0xFF, 0xFF);
+                SDL_SetRenderDrawColor(screen.getRenderer(), 22, 128, 17, 0xFF);
                 SDL_RenderClear(screen.getRenderer());
 
-                SDL_Rect srcRect = {};
-                srcRect.x = 0;
-                srcRect.y = 0;
-                srcRect.w = 32;
-                srcRect.h = 48;
-
-                SDL_Rect destRect = {};
-                destRect.x = 0;
-                destRect.y = 0;
-                destRect.w = 32;
-                destRect.h = 48;
-                SDL_RenderCopy(screen.getRenderer(), spritesheet, &srcRect, &destRect);
+                sprite.render(screen.getRenderer(), 10, 10);
 
                 SDL_RenderPresent(screen.getRenderer());
             }
-
-            SDL_DestroyTexture(spritesheet);
         }
     }
 
