@@ -18,23 +18,8 @@ public:
         SDL_Surface* fg_surface = TTF_RenderText_Solid(base_font, text, white);
         SDL_Rect render_rect = {outline_width, outline_width, fg_surface->w, fg_surface->h};
 
-
-        Uint32 rmask, gmask, bmask, amask;
-        /* SDL interprets each pixel as a 32-bit number, so our masks must depend
-           on the endianness (byte order) of the machine */
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-        rmask = 0xff000000;
-        gmask = 0x00ff0000;
-        bmask = 0x0000ff00;
-        amask = 0x000000ff;
-#else
-        rmask = 0x000000ff;
-        gmask = 0x0000ff00;
-        bmask = 0x00ff0000;
-        amask = 0xff000000;
-#endif
         // Create a surface that will be the returned result
-        SDL_Surface* test = SDL_CreateRGBSurface(0,bg_surface->w,bg_surface->h,32,rmask, gmask, bmask, amask);
+        SDL_Surface* test = CreateSDL_RGBA_Surface(bg_surface->w, bg_surface->h);
 
         // Blit our fg and bg surfaces onto the result
         SDL_BlitSurface(bg_surface, NULL, test, NULL);
