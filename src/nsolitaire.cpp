@@ -107,7 +107,6 @@ struct Deck
 
     void shuffle()
     {
-        // TODO: Shuffle cards here
         auto seed = std::chrono::system_clock::now().time_since_epoch().count();
         // std::random_device rd{  };
         std::mt19937 rng {seed};
@@ -280,7 +279,6 @@ struct Pile
 
     bool is_card_available(Card* card)
     {
-        // TODO: Implement this using Ordering Function
         int card_index = get_card_index(card);
 
         if (cards.size() == 1 || ((int)cards.size() - 1 == card_index))
@@ -399,6 +397,8 @@ struct DragState
 
     void update(vec2 mouse_pos)
     {
+        if (!active) { return; }
+
         ppf(mouse_pos + mouse_offset, cards);
     }
 
@@ -415,6 +415,8 @@ struct DragState
 
     void render(RenderContext* rc, CardRenderer* cr)
     {
+        if (!active) { return; }
+
         for (auto card : cards)
         {
             cr->render_card(rc, card);
@@ -494,20 +496,21 @@ struct Game
     // Create and add tableau_items in their location
     // Deal cards from deck to Tableau
     //  Return to Solitaire to let game run
-    virtual void initialize_board(SpriteSheet* sprite_sheet, Deck* deck, GameState* state) = 0;
+    virtual void initialize_board(SpriteSheet*, Deck*, GameState*) = 0;
+    virtual bool is_game_won(GameState*) = 0;
 
-    // Allow Game to overrule drag before starting
-    //  e.g. FreeCell limits movement by open cells
-    virtual bool allow_drag(/* TODO: Args */) { return true; }
-
-
+    // Allow Game to overrule certain actions before starting
+    //  e.g. FreeCell limits drag by open cells
+    virtual bool allow_drag(GameState*) { return true; }
+    virtual bool allow_drop(GameState*, Pile*) { return true; }
 };
 
 struct Playground : Game
 {
     enum PileTypes
     {
-        Cascade = 0
+        Cascade = 0,
+        Foundation = 1
     };
 
     virtual void initialize_board(SpriteSheet* sprite_sheet, Deck* deck, GameState* state)
@@ -525,9 +528,16 @@ struct Playground : Game
         Pile* pile_two = new Pile(
             PilePositioningFunctions::OffsetCascade,
             PileAcceptFunctions::Any,
-            PileOrderingFunctions::AlternateColor,
+            PileOrderingFunctions::Any,
             sprite_sheet->createSprite(1, 14),
             vec2 { 50, 10 });
+
+        Pile* foundation_pile = new Pile
+            (PilePositioningFunctions::OffsetCascade,
+             PileAcceptFunctions::Any,
+             PileOrderingFunctions::Any,
+             sprite_sheet->createSprite(0, 14),
+             vec2 { 140, 20 });
 
         pile_two->add_card(deck->deal_card());
         pile->add_card(deck->deal_card());
@@ -543,11 +553,27 @@ struct Playground : Game
 
         state->tableau.add_pile(Cascade, pile);
         state->tableau.add_pile(Cascade, pile_two);
+        state->tableau.add_pile(Foundation, foundation_pile);
     }
 
-    virtual void is_game_over()
+    virtual bool is_game_won(GameState* state)
     {
+        for (auto pile : state->tableau.get_piles_of_type(Cascade))
+        {
+            if (pile->cards.size() > 0) { return false; }
+        }
 
+        for (auto pile : state->tableau.get_piles_of_type(Foundation))
+        {
+            int prev_rank{ 999 };
+            for (auto it = pile->cards.begin(); it != pile->cards.end(); ++it)
+            {
+                if (prev_rank < it->rank) { return false; }
+                prev_rank = it->rank;
+            }
+        }
+
+        return true;
     }
 };
 
@@ -559,12 +585,14 @@ class Solitaire
     // Board board;
     GameState state;
     Game* game;
+    bool game_won;
 
 public:
     Solitaire(RenderContext* render_context)
         : sprite_sheet(render_context->loadTexture("res/card_spritesheet.png"), 32, 48)
         , card_renderer(&sprite_sheet)
         , state()
+        , game_won{ false }
     {
         game = new Playground();
 
@@ -575,44 +603,69 @@ public:
     }
     ~Solitaire() { delete game; }
 
+    void handle_mouse_press(vec2 mouse_pos)
+    {
+        Card* clicked_card{};
+
+        for (auto pile : state.tableau.all_piles)
+        {
+            clicked_card = pile->card_clicked(mouse_pos);
+
+            if (clicked_card && pile->is_card_available(clicked_card))
+            {
+                state.drag.start_drag(mouse_pos, pile, clicked_card);
+                if (!game->allow_drag(&state))
+                {
+                    state.drag.end_drag();
+                }
+
+                break;
+            }
+        }
+    }
+
+    void handle_mouse_release(vec2 mouse_pos)
+    {
+        for (auto pile : state.tableau.all_piles)
+        {
+            if (pile->is_within_bounds(mouse_pos) && pile->can_accept_card(&state.drag.cards) && game->allow_drop(&state, &(*pile)))
+            {
+                pile->receive_cards(&state.drag.cards);
+            }
+        }
+
+        state.drag.end_drag();
+    }
+
     void update(InputState* input_state)
     {
-        // TODO: Clean this up
-        if (state.drag.active)
+        if (game_won)
         {
-            state.drag.update(input_state->mouse.pos);
+            return;
         }
+
+        vec2 mouse_pos{ input_state->mouse.pos };
 
         if (input_state->mouse.left.was_pressed)
         {
-            Card* clicked_card{};
-
-            for (auto pile : state.tableau.all_piles)
-            {
-                clicked_card = pile->card_clicked(input_state->mouse.pos);
-                if (clicked_card && pile->is_card_available(clicked_card))
-                {
-                    state.drag.start_drag(input_state->mouse.pos, pile, clicked_card);
-                    break;
-                }
-            }
-
+            handle_mouse_press(mouse_pos);
         }
 
         if (input_state->mouse.left.was_released)
         {
-            for (auto pile : state.tableau.all_piles)
+            handle_mouse_release(mouse_pos);
+
+            // Only check for victory after a drag has ended (the board has updated)
+            game_won = game->is_game_won(&state);
+            if (game_won)
             {
-                if (pile->is_within_bounds(input_state->mouse.pos))
-                {
-                    if (pile->can_accept_card(&state.drag.cards))
-                    {
-                        pile->receive_cards(&state.drag.cards);
-                    }
-                }
+                std::cout << "Game won!" << std::endl;
             }
-            state.drag.end_drag();
         }
+
+        // Update at the end. If the drag is over, no need to update
+        state.drag.update(input_state->mouse.pos);
+
     }
 
     void render(RenderContext* rc)
@@ -621,13 +674,10 @@ public:
         rc->clearScreen();
 
         for (auto pile : state.tableau.all_piles)
-       {
+        {
             pile->render(rc, &card_renderer);
         }
 
-        if (state.drag.active)
-        {
-            state.drag.render(rc, &card_renderer);
-        }
+        state.drag.render(rc, &card_renderer);
     }
 };
