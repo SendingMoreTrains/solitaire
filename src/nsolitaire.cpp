@@ -147,11 +147,13 @@ namespace DeckGenerators
     }
 }
 
-struct Deck
+class Deck
 {
+private:
     CardSprites* card_sprites;
     std::vector<Card> cards;
 
+public:
     Deck(CardSprites* card_sprites)
         : card_sprites{ card_sprites }
         , cards{}
@@ -188,79 +190,35 @@ struct Deck
 
         return dealt;
     }
+
+    bool is_empty()
+    {
+        return cards.empty();
+    }
 };
 
 
-using PilePositioningFunction = void(*)(vec2, std::vector<Card>&);
-namespace PilePositioningFunctions
-{
-    const int CARD_OFFSET = 13;
-
-    void OffsetCascade(vec2 pile_pos, std::vector<Card>& cards)
-    {
-        if (cards.empty()) { return; }
-
-        for (int i = 0; i < (int)cards.size(); ++i)
-        {
-            cards[i].set_position(vec2 { pile_pos.x, pile_pos.y + (i * CARD_OFFSET) });
-        }
-    }
-}
-
-
-using PileOrderingFunction = bool(*)(Card*, Card*);
-namespace PileOrderingFunctions
-{
-    bool Any(Card*, Card*) { return true; }
-
-    bool AlternateColor(Card* top_card, Card* bottom_card)
-    {
-        return top_card->get_color() != bottom_card->get_color();
-    }
-}
-
-
-using PileAcceptFunction = bool(*)(std::vector<Card>*, std::vector<Card>*, PileOrderingFunction);
-namespace PileAcceptFunctions
-{
-    bool Any(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction)
-    { return true; }
-
-    bool AnySingle(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction)
-    {
-        return incoming_cards->size() == 1;
-    }
-
-    bool FollowOrdering(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction pof)
-    {
-        if (cards->empty()) { return true; }
-        return pof(&cards->back(), &incoming_cards->front());
-    }
-
-    bool AlternateColorsDescendingRank(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction)
-    {
-        return
-            cards->back().get_color() != incoming_cards->front().get_color() // alternates color
-            && ((cards->back().rank - incoming_cards->front().rank) == 1);    // rank is one higher
-    }
-}
+#include "cards/pile_strategies.h"
 
 
 struct Pile
 {
-    PilePositioningFunction ppf;
-    PileAcceptFunction paf;
+    PileAcceptFunction accept_function;
+    PileEmptyAcceptFunction empty_accept_function;
+    PileOrderingFunction ordering_function;
+    PilePositioningFunction positioning_function;
 
-    PileOrderingFunction pof;
+    bool accept_multiple;
 
     Sprite empty_sprite;
     rect area;
     std::vector<Card> cards;
 
-    Pile(PilePositioningFunction ppf, PileAcceptFunction paf, PileOrderingFunction pof, Sprite empty_sprite, vec2 pos = { 0, 0 })
-        : ppf{ ppf }
-        , paf{ paf }
-        , pof{ pof }
+    Pile(PileAcceptFunction paf, PileEmptyAcceptFunction peaf, PileOrderingFunction pof, PilePositioningFunction ppf, Sprite empty_sprite, vec2 pos = { 0, 0 }, bool accept_multiple = true)
+        : accept_function{ paf }
+        , empty_accept_function{ peaf }
+        , ordering_function{ pof }
+        , positioning_function{ ppf }
         , empty_sprite{ empty_sprite }
         , area{ pos.x, pos.y, empty_sprite.src_rect.w, empty_sprite.src_rect.h }
         , cards{}
@@ -278,9 +236,12 @@ struct Pile
         return (int)std::distance(cards.begin(), get_iterator_from_card(card));
     }
 
-    bool can_accept_card(std::vector<Card>* incoming_cards) { return paf(&cards, incoming_cards, pof); }
+    bool can_accept_cards(std::vector<Card>* incoming_cards) {
+        if (!accept_multiple && incoming_cards->size() > 1) { return false; }
+        return cards.empty() ? empty_accept_function(incoming_cards) : accept_function(&cards, incoming_cards, ordering_function);
+    }
 
-    void reset_positions() { ppf(get_position(), cards); }
+    void reset_positions() { positioning_function(get_position(), cards); }
 
     bool is_card_available(Card* card)
     {
@@ -294,7 +255,7 @@ struct Pile
         int next_card_index = card_index + 1;
         while (next_card_index != (int)cards.size())
         {
-            if (!pof(&cards[card_index++], &cards[next_card_index++]))
+            if (!ordering_function(&cards[card_index++], &cards[next_card_index++]))
             {
                 return false;
             }
@@ -381,9 +342,51 @@ struct Pile
     }
 };
 
+
+class PileBuilder
+{
+private:
+    PileAcceptFunction accept_function;
+    PileEmptyAcceptFunction empty_accept_function;
+    PileOrderingFunction ordering_function;
+    PilePositioningFunction positioning_function;
+    Sprite empty_sprite;
+    bool accept_multiple;
+    vec2 pile_pos;
+
+public:
+    void reset()
+    {
+        accept_function = PileAcceptFunctions::Any;
+        empty_accept_function = PileEmptyAcceptFunctions::Any;
+        ordering_function = PileOrderingFunctions::Any;
+        positioning_function = PilePositioningFunctions::OffsetCascade;
+        empty_sprite = Sprite();
+        accept_multiple = 0;
+        pile_pos = vec2 { 0, 0 };
+    }
+
+    PileBuilder()
+    {
+        reset();
+    }
+
+    Pile* build()
+    {
+        return new Pile(accept_function, empty_accept_function, ordering_function, positioning_function, empty_sprite, pile_pos, accept_multiple);
+    }
+
+    PileBuilder& set_accept_function(PileAcceptFunction paf)
+    {
+        accept_function = paf;
+        return *this;
+    }
+};
+
+
 struct DragState
 {
-    PilePositioningFunction ppf;
+    PilePositioningFunction positioning_function;
     std::vector<Card> cards;
     bool active;
     vec2 mouse_offset;
@@ -393,7 +396,7 @@ struct DragState
     {
         cards = pile->take_cards(top_card);
         mouse_offset = cards.front().get_position() - mouse_pos;
-        ppf = pile->ppf;
+        positioning_function = pile->positioning_function;
         source_pile = pile;
         active = true;
     }
@@ -402,7 +405,7 @@ struct DragState
     {
         if (!active) { return; }
 
-        ppf(mouse_pos + mouse_offset, cards);
+        positioning_function(mouse_pos + mouse_offset, cards);
     }
 
     void return_cards()
@@ -499,7 +502,7 @@ struct Game
     // Create and add tableau_items in their location
     // Deal cards from deck to Tableau
     //  Return to Solitaire to let game run
-    virtual void initialize_board(CardSprites*, Deck*, GameState*) = 0;
+    virtual void initialize_board(CardSprites*, GameState*) = 0;
     virtual bool is_game_won(GameState*) = 0;
 
     // Allow Game to overrule certain actions before starting
@@ -520,43 +523,47 @@ struct Playground : Game
         Foundation = 1
     };
 
-    virtual void initialize_board(CardSprites* sprites, Deck* deck, GameState* state)
+    virtual void initialize_board(CardSprites* sprites, GameState* state)
     {
-        deck->add_deck();
-        deck->shuffle();
+        Deck deck{ sprites };
+        deck.add_deck();
+        deck.shuffle();
 
         Pile* pile = new Pile(
-            PilePositioningFunctions::OffsetCascade,
             PileAcceptFunctions::Any,
+            PileEmptyAcceptFunctions::Any,
             PileOrderingFunctions::Any,
+            PilePositioningFunctions::OffsetCascade,
             sprites->get_empty_sprite(),
             vec2 { 10, 10 });
 
         Pile* pile_two = new Pile(
-            PilePositioningFunctions::OffsetCascade,
             PileAcceptFunctions::Any,
+            PileEmptyAcceptFunctions::Any,
             PileOrderingFunctions::Any,
+            PilePositioningFunctions::OffsetCascade,
             sprites->get_empty_sprite(),
             vec2 { 50, 10 });
 
-        Pile* foundation_pile = new Pile
-            (PilePositioningFunctions::OffsetCascade,
+        Pile* foundation_pile = new Pile(
              PileAcceptFunctions::Any,
+             PileEmptyAcceptFunctions::Any,
              PileOrderingFunctions::Any,
+             PilePositioningFunctions::OffsetCascade,
              sprites->get_empty_sprite(),
              vec2 { 140, 20 });
 
-        pile_two->add_card(deck->deal_card());
-        pile->add_card(deck->deal_card());
-        pile->add_card(deck->deal_card());
+        pile_two->add_card(deck.deal_card());
+        pile->add_card(deck.deal_card());
+        pile->add_card(deck.deal_card());
 
-        pile_two->add_card(deck->deal_card());
-        pile->add_card(deck->deal_card());
-        pile->add_card(deck->deal_card());
+        pile_two->add_card(deck.deal_card());
+        pile->add_card(deck.deal_card());
+        pile->add_card(deck.deal_card());
 
-        pile_two->add_card(deck->deal_card());
-        pile->add_card(deck->deal_card());
-        pile->add_card(deck->deal_card());
+        pile_two->add_card(deck.deal_card());
+        pile->add_card(deck.deal_card());
+        pile->add_card(deck.deal_card());
 
         state->tableau.add_pile(Cascade, pile);
         state->tableau.add_pile(Cascade, pile_two);
@@ -601,11 +608,10 @@ public:
         , state()
         , game_won{ false }
     {
-        game = new Playground();
+        // game = new Playground();
+        game = new FreeCell();
 
-        Deck deck(&card_sprites);
-
-        game->initialize_board(&card_sprites, &deck, &state);
+        game->initialize_board(&card_sprites, &state);
     }
     ~Solitaire() { delete game; }
 
@@ -630,11 +636,12 @@ public:
         }
     }
 
+    // TODO: Handle drop by overlap instead of mouse_pos
     void handle_mouse_release(vec2 mouse_pos)
     {
         for (auto pile : state.tableau.all_piles)
         {
-            if (pile->is_within_bounds(mouse_pos) && pile->can_accept_card(&state.drag.cards) && game->allow_drop(&state, &(*pile)))
+            if (pile->is_within_bounds(mouse_pos) && pile->can_accept_cards(&state.drag.cards) && game->allow_drop(&state, &(*pile)))
             {
                 pile->receive_cards(&state.drag.cards);
             }
