@@ -118,6 +118,7 @@ struct Deck
 };
 
 
+// TODO: This is shit, find a better way
 class CardRenderer
 {
 public:
@@ -197,7 +198,7 @@ namespace PilePositioningFunctions
 }
 
 
-using PileAcceptFunction = bool(*)(std::vector<Card>* cards, Card* incoming_card);
+using PileAcceptFunction = bool(*)(std::vector<Card>*, Card*);
 namespace PileAcceptFunctions
 {
     bool Any(std::vector<Card>* cards, Card* incoming_card) { return true; }
@@ -238,6 +239,11 @@ struct Pile
         ppf(get_position(), cards);
     }
 
+    std::vector<Card> take_cards(Card* take_from)
+    {
+        // TODO: Flesh this out
+    }
+
     Card* card_clicked(vec2 mouse_pos)
     {
         for (auto it = cards.rbegin(); it != cards.rend(); ++it)
@@ -276,6 +282,13 @@ struct DragState
     bool active;
     vec2 mouse_offset;
 
+    void start_drag(vec2 mouse_pos, Pile* pile, Card* top_card)
+    {
+        cards = pile->take_cards(top_card);
+        mouse_offset = mouse_pos - pile->get_position();
+        active = true;
+    }
+
     void update(vec2 mouse_pos)
     {
         ppf(mouse_pos + mouse_offset, cards);
@@ -285,6 +298,14 @@ struct DragState
     {
         active = false;
         cards.clear();
+    }
+
+    void render(RenderContext* rc, CardRenderer* cr)
+    {
+        for (auto card : cards)
+        {
+            cr->render_card(rc, card);
+        }
     }
 };
 
@@ -341,6 +362,7 @@ struct UIElement
 
 struct GameState
 {
+    DragState drag_state;
     TableauState tableau;
     std::vector<UIElement> ui_elements;
 };
@@ -428,9 +450,15 @@ public:
     }
     ~Solitaire() { delete game; }
 
+    // TODO: State machine in here?
     void update(InputState* input_state)
     {
         // std::vector<Pile*>* piles = &state.tableau.all_piles;
+
+        if (state.drag_state.active)
+        {
+            state.drag_state.update(input_state->mouse.pos);
+        }
 
         if (input_state->mouse.left.was_pressed)
         {
@@ -442,12 +470,18 @@ public:
                 if (clicked_card)
                 {
                     clicked_card->print();
-                    // Start a drag here:
+                    // Start a drag here
+
+                    state.drag_state.start_drag(input_state->mouse.pos, pile, clicked_card);
                 }
             }
 
         }
 
+        if (input_state->mouse.left.was_released)
+        {
+            state.drag_state.end_drag();
+        }
     }
 
     void render(RenderContext* rc)
@@ -458,6 +492,11 @@ public:
         for (auto pile : state.tableau.all_piles)
         {
             pile->render(rc, &card_renderer);
+        }
+
+        if (state.drag_state.active)
+        {
+            state.drag_state.render(rc, &card_renderer);
         }
     }
 };
