@@ -24,6 +24,18 @@ struct Card
     CardColor getColor();
 
     void setPosition(int x, int y);
+
+    void setPosition(vec2 new_pos)
+    {
+        area.x = new_pos.x;
+        area.y = new_pos.y;
+    }
+
+    vec2 getPosition()
+    {
+        return vec2{ area.x, area.y };
+    }
+
     void render(RenderContext* rc);
 };
 

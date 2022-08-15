@@ -11,10 +11,30 @@ struct Pile
         , area{ 0, 0, sprite.src_rect.w, sprite.src_rect.h }
     {}
 
+    Pile(Sprite sprite)
+        : sprite{ sprite }
+        , area{ 0, 0, sprite.src_rect.w, sprite.src_rect.h }
+    {}
+
     void addCard(Card card)
     {
-        cards.push_back(card);
+        vec2 next_card_pos{ area.x, area.y };
 
+        if (!cards.empty())
+        {
+            next_card_pos.y = cards.back().getPosition().y + 13;
+        }
+
+        card.setPosition(next_card_pos);
+        cards.push_back(card);
+    }
+
+    void updateCardsPosition()
+    {
+        for (int i = 0; i < static_cast<int>(cards.size()); ++i)
+        {
+            cards[i].setPosition(area.x, area.y + (13 * i));
+        }
     }
 
     void setPosition(int x, int y)
@@ -22,10 +42,35 @@ struct Pile
         area.x = x;
         area.y = y;
 
-        for (int i = 0; i < static_cast<int>(cards.size()); ++i)
+        updateCardsPosition();
+    }
+
+    void setPosition(vec2 new_pos)
+    {
+        area.x = new_pos.x;
+        area.y = new_pos.y;
+
+        updateCardsPosition();
+    }
+
+    vec2 getPosition() { return vec2{ area.x, area.y }; }
+
+    void takeFromCard(Card* card)
+    {
+        auto index = cards.begin() + std::distance(&cards[0], card);
+        vec2 start_pos{ this->getPosition() };
+
+        // Pile new_pile(sprite);
+        // new_pile.setPosition(start_pos);
+        while (index != cards.end())
         {
-            cards[i].setPosition(x, y + (13 * i));
+            // new_pile.addCard(*index);
+            // index = cards.erase(index);
+            std::cout << "Rank: " << index->rank << ", Suit: " << index->suit << "\n";
+            ++index;
         }
+
+        // return new_pile;
     }
 
     void render(RenderContext* rc)
@@ -92,13 +137,25 @@ public:
             auto y = inputState->mouse.y;
 
             Card* clicked = scanForClick(&pileOne, x, y);
-            if (clicked == nullptr) { clicked = scanForClick(&pileTwo, x, y); }
-
-            std::cout << "X: " << x << "\nY: " << y << std::endl;
-            if (clicked != nullptr)
+            if (clicked)
             {
-                std::cout << "Rank: " << clicked->rank << ", Suit: " << clicked->suit << "\n";
+                pileOne.takeFromCard(clicked);
             }
+            else
+            {
+                clicked = scanForClick(&pileTwo, x, y);
+                if (clicked)
+                {
+                    pileTwo.takeFromCard(clicked);
+                }
+            }
+
+
+            // std::cout << "X: " << x << "\nY: " << y << std::endl;
+            // if (clicked != nullptr)
+            // {
+            //     std::cout << "Rank: " << clicked->rank << ", Suit: " << clicked->suit << "\n";
+            // }
             std::cout << std::endl;
         }
     }
