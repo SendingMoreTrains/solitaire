@@ -96,7 +96,7 @@ public:
         // Create a surface that will be the returned result
         SDL_Surface* overlay_s = CreateSDL_RGBA_Surface(_game_width, _game_height);
 
-        SDL_FillRect(overlay_s, NULL, SDL_MapRGBA(overlay_s->format, 0, 0, 0, 160));
+        SDL_FillRect(overlay_s, NULL, SDL_MapRGBA(overlay_s->format, 0, 0, 0, 180));
 
         result = create_texture(overlay_s);
         SDL_FreeSurface(overlay_s);
@@ -131,6 +131,11 @@ public:
     {
         rect dst_rect{ pos.x, pos.y, text.area.w, text.area.h };
         SDL_RenderCopy(_renderer, text.texture, NULL, &dst_rect);
+    }
+
+    void render_text(RenderedText text)
+    {
+        render_text(text, vec2 {text.area.x, text.area.y});
     }
 
     void setDrawColor(int r, int g, int b)

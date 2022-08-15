@@ -27,6 +27,11 @@ public:
     {}
     ~Solitaire() { delete game; }
 
+    BaseGame* get_game()
+    {
+        return game;
+    }
+
     void start_game()
     {
         game->initialize_board(&card_sprites, &state);
@@ -62,6 +67,8 @@ public:
     // TODO: Handle drop by overlap instead of mouse_pos
     void handle_mouse_release(vec2 mouse_pos)
     {
+        if (!state.drag.active) { return; }
+
         for (auto pile : state.tableau.all_piles)
         {
             if (pile->is_within_bounds(mouse_pos) && pile->can_accept_cards(&state.drag.cards) && game->allow_drop(&state, &(*pile)))

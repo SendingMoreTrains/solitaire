@@ -48,4 +48,18 @@ struct RenderedText
     {
         SDL_DestroyTexture(texture);
     }
+
+    void set_position(vec2 pos)
+    {
+        area.x = pos.x;
+        area.y = pos.y;
+    }
+
+    bool is_within_bounds(vec2 pos)
+    {
+        return (pos.x > area.x
+                && pos.x < area.x + area.w
+                && pos.y > area.y
+                && pos.y < area.y + area.h);
+    }
 };

@@ -40,6 +40,13 @@ struct vec2 {
     }
 };
 
+void send_quit_event()
+{
+    SDL_Event quit_event{};
+    quit_event.type = SDL_QUIT;
+    SDL_PushEvent(&quit_event);
+}
+
 #include "engine/engine.h"
 
 #include "solitaire.cpp"
