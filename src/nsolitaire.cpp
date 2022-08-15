@@ -110,20 +110,7 @@ struct Deck
 
         return dealt;
     }
-};
-
-struct DragState
-{
-    bool active;
-    std::vector<Card> cards;
-    vec2 mouse_offset;
-
-    void end_drag()
-    {
-        active = false;
-        cards.clear();
-    }
-};
+};;
 
 
 using PileRenderFunction = void(*)(RenderContext* rc, std::vector<Card>* cards);
@@ -202,21 +189,22 @@ private:
     BackColor back_color;
 };
 
-using PilePlacementFunction = void(*)(vec2, std::vector<Card>*, Card*);
-namespace PilePlacementFunctions
+using PilePositioningFunction = void(*)(vec2, std::vector<Card>&);
+namespace PilePositioningFunctions
 {
-    void OffsetCascade(vec2 pile_position, std::vector<Card>* cards, Card* incoming_card)
+    const int CARD_OFFSET = 13;
+
+    void OffsetCascade(vec2 pile_pos, std::vector<Card>& cards)
     {
-        if (cards->empty())
+        if (cards.empty()) { return; }
+
+        for (std::vector<Card>::size_type i = 0; i < cards.size(); ++i)
         {
-            incoming_card->set_position(pile_position);
-        }
-        else
-        {
-            incoming_card->set_position(cards->back().get_position() + vec2 { 0, 13 });
+            cards[i].set_position(vec2 { pile_pos.x, pile_pos.y + ((int)i * CARD_OFFSET) });
         }
     }
 }
+
 
 using PileAcceptFunction = bool(*)(std::vector<Card>* cards, Card* incoming_card);
 namespace PileAcceptFunctions
@@ -234,14 +222,14 @@ namespace PileAcceptFunctions
 
 struct Pile
 {
-    PilePlacementFunction ppf;
+    PilePositioningFunction ppf;
     PileAcceptFunction paf;
 
     Sprite empty_sprite;
     rect area;
     std::vector<Card> cards;
 
-    Pile(PilePlacementFunction ppf, PileAcceptFunction paf, Sprite empty_sprite, vec2 pos = { 0, 0 })
+    Pile(PilePositioningFunction ppf, PileAcceptFunction paf, Sprite empty_sprite, vec2 pos = { 0, 0 })
         : ppf{ ppf }
         , paf{ paf }
         , empty_sprite{ empty_sprite }
@@ -249,17 +237,14 @@ struct Pile
         , cards{}
     {}
 
-    bool can_accept_card(Card* incoming_card) { return paf(&cards, incoming_card); }
+    vec2 get_position() { return vec2 { area.x, area.y }; }
 
-    vec2 get_position()
-    {
-        return vec2 { area.x, area.y };
-    }
+    bool can_accept_card(Card* incoming_card) { return paf(&cards, incoming_card); }
 
     void add_card(Card incoming_card)
     {
-        ppf(get_position(), &cards, &incoming_card);
         cards.push_back(incoming_card);
+        ppf(get_position(), cards);
     }
 
     void render(RenderContext* rc, CardRenderer* cr)
@@ -280,11 +265,37 @@ struct Pile
     }
 };
 
+struct DragState
+{
+    PilePositioningFunction ppf;
+    std::vector<Card> cards;
+    bool active;
+    vec2 mouse_offset;
+
+    void update(vec2 mouse_pos)
+    {
+        ppf(mouse_pos, cards);
+    }
+
+    void end_drag()
+    {
+        active = false;
+        cards.clear();
+    }
+}
 
 struct TableauState
 {
     std::vector<Pile*> all_piles;
     std::map<int, std::vector<Pile*>> pile_map;
+
+    ~TableauState()
+    {
+        for (auto pile : all_piles)
+        {
+            delete pile;
+        }
+    }
 
     void add_pile(int pile_type, Pile* incoming_pile)
     {
@@ -364,13 +375,13 @@ struct Playground : Game
         deck->add_deck();
 
         Pile* pile = new Pile(
-            PilePlacementFunctions::OffsetCascade,
+            PilePositioningFunctions::OffsetCascade,
             PileAcceptFunctions::Any,
             sprite_sheet->createSprite(0, 14),
             vec2 { 10, 10 });
 
         Pile* pile_two = new Pile(
-            PilePlacementFunctions::OffsetCascade,
+            PilePositioningFunctions::OffsetCascade,
             PileAcceptFunctions::Any,
             sprite_sheet->createSprite(1, 14),
             vec2 { 50, 10 });
@@ -431,7 +442,5 @@ public:
 
             pile->render(rc, &card_renderer);
         }
-
-        card_renderer.render_back(rc, vec2 { 30, 50 });
     }
 };
