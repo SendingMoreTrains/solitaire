@@ -3,7 +3,7 @@ struct ButtonState {
 };
 
 struct MouseState {
-    int x, y;
+    vec2 pos;
     ButtonState left, right;
 };
 
@@ -24,13 +24,13 @@ void processSdlEvent(InputState* inputState, SDL_Event* event)
 {
     switch (event->type) {
     case SDL_MOUSEMOTION:
-        inputState->mouse.x = event->motion.x;
-        inputState->mouse.y = event->motion.y;
+        inputState->mouse.pos.x = event->motion.x;
+        inputState->mouse.pos.y = event->motion.y;
         break;
 
     case SDL_MOUSEBUTTONUP:
-        inputState->mouse.x = event->button.x;
-        inputState->mouse.y = event->button.y;
+        inputState->mouse.pos.x = event->button.x;
+        inputState->mouse.pos.y = event->button.y;
 
         if (event->button.button == SDL_BUTTON_LEFT) {
             inputState->mouse.left.was_released = true;
@@ -44,8 +44,8 @@ void processSdlEvent(InputState* inputState, SDL_Event* event)
         break;
 
     case SDL_MOUSEBUTTONDOWN:
-        inputState->mouse.x = event->button.x;
-        inputState->mouse.y = event->button.y;
+        inputState->mouse.pos.x = event->button.x;
+        inputState->mouse.pos.y = event->button.y;
 
         if (event->button.button == SDL_BUTTON_LEFT) {
             inputState->mouse.left.was_pressed = true;

@@ -106,10 +106,10 @@ struct Pile
     }
 };
 
-Card* scanForClick(Pile* pile, int x, int y)
+Card* scanForClick(Pile* pile, vec2 pos)
 {
     for (auto card_i = pile->cards.rbegin(); card_i != pile->cards.rend(); ++card_i) {
-        if (withinBounds(&card_i->area, vec2{ x, y }))
+        if (withinBounds(&card_i->area, pos))
         {
             return &*card_i;
         }
@@ -124,9 +124,11 @@ struct DragState
     Pile pile;
     vec2 offset;
 
-    void start_drag(std::vector<Card> cards)
+    void start_drag(std::vector<Card> cards, vec2 mouse_pos)
     {
-
+        active = true;
+        pile.addCards(cards);
+        offset = vec2{ mouse_pos.x - cards[0].area.x, mouse_pos.y - cards[0].area.y };
     }
 
     void end_drag()
@@ -170,33 +172,33 @@ public:
 
     void update(InputState* inputState)
     {
-        auto mouse_x = inputState->mouse.x;
-        auto mouse_y = inputState->mouse.y;
         if (inputState->mouse.left.was_pressed)
         {
             Card* clicked_card = nullptr;
-            clicked_card = scanForClick(&pileOne, mouse_x, mouse_y);
+            clicked_card = scanForClick(&pileOne, inputState->mouse.pos);
             if (clicked_card)
             {
-                vec2 clicked_card_pos{ clicked_card->getPosition() };
-                dragState.pile.addCards(pileOne.takeFromCard(clicked_card));
-                dragState.offset = vec2{ mouse_x - clicked_card_pos.x, mouse_y - clicked_card_pos.y };
-                dragState.active = true;
+                // vec2 clicked_card_pos{ clicked_card->getPosition() };
+                // dragState.pile.addCards(pileOne.takeFromCard(clicked_card));
+                // dragState.offset = vec2{ mouse_x - clicked_card_pos.x, mouse_y - clicked_card_pos.y };
+                // dragState.active = true;
+                dragState.start_drag(pileOne.takeFromCard(clicked_card), inputState->mouse.pos);
             }
 
-            clicked_card = scanForClick(&pileTwo, mouse_x, mouse_y);
+            clicked_card = scanForClick(&pileTwo, inputState->mouse.pos);
             if (clicked_card)
             {
-                vec2 clicked_card_pos{ clicked_card->getPosition() };
-                dragState.pile.addCards(pileTwo.takeFromCard(clicked_card));
-                dragState.offset = vec2{ mouse_x - clicked_card_pos.x, mouse_y - clicked_card_pos.y };
-                dragState.active = true;
+                // vec2 clicked_card_pos{ clicked_card->getPosition() };
+                // dragState.pile.addCards(pileTwo.takeFromCard(clicked_card));
+                // dragState.offset = vec2{ mouse_x - clicked_card_pos.x, mouse_y - clicked_card_pos.y };
+                // dragState.active = true;
+                dragState.start_drag(pileTwo.takeFromCard(clicked_card), inputState->mouse.pos);
             }
         }
 
         if (dragState.active)
         {
-            dragState.pile.setPosition(mouse_x - dragState.offset.x, mouse_y - dragState.offset.y);
+            dragState.pile.setPosition(inputState->mouse.pos.x - dragState.offset.x, inputState->mouse.pos.y - dragState.offset.y);
         }
 
         if (inputState->mouse.left.was_released)
