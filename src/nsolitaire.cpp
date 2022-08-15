@@ -204,25 +204,6 @@ namespace PilePositioningFunctions
 }
 
 
-using PileAcceptFunction = bool(*)(std::vector<Card>*, std::vector<Card>*);
-namespace PileAcceptFunctions
-{
-    bool Any(std::vector<Card>* cards, std::vector<Card>* incoming_cards) { return true; }
-
-    bool AnySingle(std::vector<Card>* cards, std::vector<Card>* incoming_cards)
-    {
-        return incoming_cards->size() == 1;
-    }
-
-    bool AlternateColorsDescendingRank(std::vector<Card>* cards, std::vector<Card>* incoming_cards)
-    {
-        return
-            cards->back().get_color() != incoming_cards->front().get_color() // alternates color
-            && ((cards->back().rank - incoming_cards->front().rank) == 1);    // rank is one higher
-    }
-}
-
-
 using PileOrderingFunction = bool(*)(Card*, Card*);
 namespace PileOrderingFunctions
 {
@@ -231,6 +212,32 @@ namespace PileOrderingFunctions
     bool AlternateColor(Card* top_card, Card* bottom_card)
     {
         return top_card->get_color() != bottom_card->get_color();
+    }
+}
+
+
+using PileAcceptFunction = bool(*)(std::vector<Card>*, std::vector<Card>*, PileOrderingFunction);
+namespace PileAcceptFunctions
+{
+    bool Any(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction)
+    { return true; }
+
+    bool AnySingle(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction)
+    {
+        return incoming_cards->size() == 1;
+    }
+
+    bool FollowOrdering(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction pof)
+    {
+        if (cards->empty()) { return true; }
+        return pof(&cards->back(), &incoming_cards->front());
+    }
+
+    bool AlternateColorsDescendingRank(std::vector<Card>* cards, std::vector<Card>* incoming_cards, PileOrderingFunction)
+    {
+        return
+            cards->back().get_color() != incoming_cards->front().get_color() // alternates color
+            && ((cards->back().rank - incoming_cards->front().rank) == 1);    // rank is one higher
     }
 }
 
@@ -257,7 +264,7 @@ struct Pile
 
     vec2 get_position() { return vec2 { area.x, area.y }; }
 
-    bool can_accept_card(std::vector<Card>* incoming_cards) { return paf(&cards, incoming_cards); }
+    bool can_accept_card(std::vector<Card>* incoming_cards) { return paf(&cards, incoming_cards, pof); }
 
     void reset_positions() { ppf(get_position(), cards); }
 
@@ -491,8 +498,8 @@ struct Playground : Game
 
         Pile* pile_two = new Pile(
             PilePositioningFunctions::OffsetCascade,
-            PileAcceptFunctions::AnySingle,
-            PileOrderingFunctions::Any,
+            PileAcceptFunctions::FollowOrdering,
+            PileOrderingFunctions::AlternateColor,
             sprite_sheet->createSprite(1, 14),
             vec2 { 50, 10 });
 
