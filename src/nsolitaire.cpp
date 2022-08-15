@@ -264,6 +264,16 @@ struct Pile
 
     vec2 get_position() { return vec2 { area.x, area.y }; }
 
+    std::vector<Card>::iterator get_iterator_from_card(Card* card)
+    {
+        return std::find_if(cards.begin(), cards.end(), [card] (Card const& c) { return &c == card; });
+    }
+
+    int get_card_index(Card* card)
+    {
+        return (int)std::distance(cards.begin(), get_iterator_from_card(card));
+    }
+
     bool can_accept_card(std::vector<Card>* incoming_cards) { return paf(&cards, incoming_cards, pof); }
 
     void reset_positions() { ppf(get_position(), cards); }
@@ -271,6 +281,22 @@ struct Pile
     bool is_card_available(Card* card)
     {
         // TODO: Implement this using Ordering Function
+        int card_index = get_card_index(card);
+
+        if (cards.size() == 1 || ((int)cards.size() - 1 == card_index))
+        {
+            return true;
+        }
+
+        int next_card_index = card_index + 1;
+        while (next_card_index != (int)cards.size())
+        {
+            if (!pof(&cards[card_index++], &cards[next_card_index++]))
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -303,7 +329,7 @@ struct Pile
 
     std::vector<Card> take_cards(Card* take_from)
     {
-        auto card_index = std::find_if(cards.begin(), cards.end(), [take_from] (Card const& c) { return &c == take_from; });
+        auto card_index = get_iterator_from_card(take_from);
 
         std::vector<Card> result{};
         while (card_index != cards.end())
@@ -498,10 +524,18 @@ struct Playground : Game
 
         Pile* pile_two = new Pile(
             PilePositioningFunctions::OffsetCascade,
-            PileAcceptFunctions::FollowOrdering,
+            PileAcceptFunctions::Any,
             PileOrderingFunctions::AlternateColor,
             sprite_sheet->createSprite(1, 14),
             vec2 { 50, 10 });
+
+        pile_two->add_card(deck->deal_card());
+        pile->add_card(deck->deal_card());
+        pile->add_card(deck->deal_card());
+
+        pile_two->add_card(deck->deal_card());
+        pile->add_card(deck->deal_card());
+        pile->add_card(deck->deal_card());
 
         pile_two->add_card(deck->deal_card());
         pile->add_card(deck->deal_card());
@@ -556,7 +590,7 @@ public:
             for (auto pile : state.tableau.all_piles)
             {
                 clicked_card = pile->card_clicked(input_state->mouse.pos);
-                if (clicked_card)
+                if (clicked_card && pile->is_card_available(clicked_card))
                 {
                     state.drag.start_drag(input_state->mouse.pos, pile, clicked_card);
                     break;
