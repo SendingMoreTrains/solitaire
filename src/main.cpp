@@ -78,61 +78,43 @@ int main(int argc, char** argv) {
                 bool quit = false;
                 SDL_Event e;
 
-                int font_index{ 0 };
-                std::vector<RenderedText> test_texts;
-                test_texts.reserve(7);
-
-                std::string font_paths_8[4]
-                    {
-                        "res/8-BIT WONDER.TTF",
-                        "res/Arcadepix Plus.ttf",
-                        "res/gameovercre1.ttf",
-                        "res/superstar_memesbruh03.ttf",
-                    };
-                for (auto& font_path : font_paths_8)
+                OutlineFont chosen_font{ "res/Arcadepix Plus.ttf", 16, 1 };
                 {
-                    OutlineFont temp{ font_path.c_str(), 16, 1 };
-                    SDL_Surface* text_surface{ temp.render_outlined_text("Testing 1 2 3, FreeCell") };
+                    SDL_Surface* text_surface{ chosen_font.render_outlined_text("Testing 1 2 3, FreeCell") };
 
                     rect area{ 0, 0, text_surface->w, text_surface->h };
                     SDL_Texture* texture = renderContext.create_texture(text_surface);
 
-                    test_texts.push_back(RenderedText {area, texture});
+                    current_text = RenderedText {area, texture};
 
                     SDL_FreeSurface(text_surface);
                 }
 
-                std::string font_paths_18[1] { "res/8-bit-pusab.ttf" };
-                for (auto& font_path : font_paths_18)
+
+                // OVERLAY TEST - REMOVE THIS
+                SDL_Texture* overlay;
                 {
-                    OutlineFont temp{ font_path.c_str(), 18, 1 };
-                    SDL_Surface* text_surface{ temp.render_outlined_text("Testing 1 2 3, FreeCell") };
+                    Uint32 rmask, gmask, bmask, amask;
+                    /* SDL interprets each pixel as a 32-bit number, so our masks must depend
+                       on the endianness (byte order) of the machine */
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+                    rmask = 0xff000000;
+                    gmask = 0x00ff0000;
+                    bmask = 0x0000ff00;
+                    amask = 0x000000ff;
+#else
+                    rmask = 0x000000ff;
+                    gmask = 0x0000ff00;
+                    bmask = 0x00ff0000;
+                    amask = 0xff000000;
+#endif
+                    // Create a surface that will be the returned result
+                    SDL_Surface* overlay_s = SDL_CreateRGBSurface(0,SCREEN_HEIGHT,SCREEN_WIDTH,32,rmask, gmask, bmask, amask);
+                    SDL_FillRect(overlay_s, NULL, SDL_MapRGBA(overlay_s->format, 0, 0, 0, 160));
 
-                    rect area{ 0, 0, text_surface->w, text_surface->h };
-                    SDL_Texture* texture = renderContext.create_texture(text_surface);
-
-                    test_texts.push_back(RenderedText {area, texture});
-
-                    SDL_FreeSurface(text_surface);
+                    overlay = renderContext.create_texture(overlay_s);
+                    SDL_FreeSurface(overlay_s);
                 }
-
-                std::string font_paths_20[1] { "res/UpheavalPro.ttf" };
-                for (auto& font_path : font_paths_20)
-                {
-                    OutlineFont temp{ font_path.c_str(), 20, 1 };
-                    SDL_Surface* text_surface{ temp.render_outlined_text("Testing 1 2 3, FreeCell") };
-
-                    rect area{ 0, 0, text_surface->w, text_surface->h };
-                    SDL_Texture* texture = renderContext.create_texture(text_surface);
-
-                    test_texts.push_back(RenderedText {area, texture});
-
-                    SDL_FreeSurface(text_surface);
-                }
-
-                font_index = 0;
-                current_text = test_texts[font_index];
-
 
                 // GAME LOOP
                 while (!quit)
@@ -161,32 +143,13 @@ int main(int argc, char** argv) {
 
                     solitaire.update(&inputState);
 
-                    if (inputState.keys.get_state(SDLK_n).was_pressed)
-                    {
-                        ++font_index;
-
-                        if (font_index >= (int)test_texts.size())
-                            font_index = 0;
-
-                        current_text = test_texts[font_index];
-                    }
-
-                    if (inputState.keys.get_state(SDLK_p).was_pressed)
-                    {
-                        --font_index;
-
-                        if (font_index < 0)
-                            font_index += (int)test_texts.size();
-
-                        current_text = test_texts[font_index];
-                    }
-
                     solitaire.render(&renderContext);
+
+                    SDL_RenderCopy(renderContext._renderer, overlay, NULL, NULL);
 
                     // Font Test
                     {
-
-                        rect dst_rect{ 20, 240, current_text.area.w, current_text.area.h };
+                        rect dst_rect{ 20, 100, current_text.area.w, current_text.area.h };
                         SDL_RenderCopy(renderContext._renderer, current_text.texture, NULL, &dst_rect);
                     }
 

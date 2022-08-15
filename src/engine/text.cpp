@@ -14,8 +14,8 @@ public:
 
     SDL_Surface* render_outlined_text(const char* text)
     {
-        SDL_Surface* bg_surface = TTF_RenderText_Solid(outline_font, text, white);
-        SDL_Surface* fg_surface = TTF_RenderText_Solid(base_font, text, black);
+        SDL_Surface* bg_surface = TTF_RenderText_Solid(outline_font, text, black);
+        SDL_Surface* fg_surface = TTF_RenderText_Solid(base_font, text, white);
         SDL_Rect render_rect = {outline_width, outline_width, fg_surface->w, fg_surface->h};
 
 
