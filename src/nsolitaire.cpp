@@ -49,6 +49,11 @@ struct Card
         area.x = pos.x;
         area.y = pos.y;
     }
+
+    void print()
+    {
+        std::cout << "Suit: " << (int)suit << ", Rank: " << rank << std::endl;
+    }
 };
 
 
@@ -110,22 +115,8 @@ struct Deck
 
         return dealt;
     }
-};;
+};
 
-
-using PileRenderFunction = void(*)(RenderContext* rc, std::vector<Card>* cards);
-namespace PileRenderFunctions
-{
-    void OffsetStack(RenderContext* rc, std::vector<Card>* cards)
-    {
-
-    }
-
-    void Fan(RenderContext* rc, std::vector<Card>* cards)
-    {
-
-    }
-}
 
 class CardRenderer
 {
@@ -247,6 +238,19 @@ struct Pile
         ppf(get_position(), cards);
     }
 
+    Card* card_clicked(vec2 mouse_pos)
+    {
+        for (auto it = cards.rbegin(); it != cards.rend(); ++it)
+        {
+            if (it->is_within_bounds(mouse_pos))
+            {
+                return &(*it);
+            }
+        }
+
+        return nullptr;
+    }
+
     void render(RenderContext* rc, CardRenderer* cr)
     {
         if (cards.empty())
@@ -274,7 +278,7 @@ struct DragState
 
     void update(vec2 mouse_pos)
     {
-        ppf(mouse_pos, cards);
+        ppf(mouse_pos + mouse_offset, cards);
     }
 
     void end_drag()
@@ -282,7 +286,7 @@ struct DragState
         active = false;
         cards.clear();
     }
-}
+};
 
 struct TableauState
 {
@@ -426,7 +430,24 @@ public:
 
     void update(InputState* input_state)
     {
-        std::vector<Pile*> piles{ state.tableau.all_piles };
+        // std::vector<Pile*>* piles = &state.tableau.all_piles;
+
+        if (input_state->mouse.left.was_pressed)
+        {
+            Card* clicked_card{};
+
+            for (auto pile : state.tableau.all_piles)
+            {
+                clicked_card = pile->card_clicked(input_state->mouse.pos);
+                if (clicked_card)
+                {
+                    clicked_card->print();
+                    // Start a drag here:
+                }
+            }
+
+        }
+
     }
 
     void render(RenderContext* rc)
@@ -434,12 +455,8 @@ public:
         rc->setDrawColor(22, 128, 17);
         rc->clearScreen();
 
-        std::vector<Pile*>* piles = &state.tableau.all_piles;
-
-        for (auto it = piles->begin(); it != piles->end(); ++it)
+        for (auto pile : state.tableau.all_piles)
         {
-            Pile* pile = *it;
-
             pile->render(rc, &card_renderer);
         }
     }
