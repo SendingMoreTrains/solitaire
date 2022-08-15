@@ -49,7 +49,7 @@ public:
             return false;
         }
 
-        _renderer = SDL_CreateRenderer(_window, -1, (SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED));
+        _renderer = SDL_CreateRenderer(_window, -1, (SDL_RENDERER_ACCELERATED));
         if (_renderer == nullptr) {
             std::cout << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
             return false;
@@ -70,6 +70,11 @@ public:
     SDL_Texture* loadTexture(const char* file)
     {
         return IMG_LoadTexture(_renderer, file);
+    }
+
+    SDL_Texture* create_texture(SDL_Surface* surface)
+    {
+        return SDL_CreateTextureFromSurface(_renderer, surface);
     }
 
     void setDrawColor(int r, int g, int b)
